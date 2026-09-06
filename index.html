@@ -1,0 +1,1645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0D1117">
+<meta name="description" content="CSC 3222 Web Technologies final revision: MVC structure, sessions, cookies, superglobals and PHP output tracing.">
+<title>Web Tech Final Revision</title>
+<meta property="og:title" content="Web Tech Final Revision">
+<meta property="og:description" content="CSC 3222 final term: MVC structure, sessions, cookies, superglobals, PHP output tracing and ten theory answers.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%230D1117'/%3E%3Ctext x='32' y='43' font-family='monospace' font-size='30' font-weight='bold' fill='%2379C0FF' text-anchor='middle'%3EWT%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"><style>
+/* ============================================================
+   Palette: One Dark Pro (default) / One Light
+   Dark-first, because that is how an editor actually looks.
+   ============================================================ */
+:root{
+  --paper:#0D1117;      /* editor background - properly dark */
+  --panel:#161B22;      /* title bar, sidebar, cards          */
+  --sunken:#010409;     /* terminal output - deepest           */
+  --ink:#C9D1D9;        /* default foreground                  */
+  --ink-hi:#F0F6FC;     /* bright headings                     */
+  --ink-2:#B1BAC4;
+  --ink-3:#8B949E;      /* muted - lightened to pass AA at 10px */
+  --rule:#30363D;
+  --hair:#21262D;
+  --sel:#264F78;
+
+  /* syntax roles - these carry meaning, not decoration */
+  --red:#FF7B72;
+  --green:#7EE787;
+  --yellow:#E3B341;
+  --orange:#FFA657;
+  --blue:#79C0FF;
+  --purple:#D2A8FF;
+  --cyan:#56D4DD;
+  --str:#A5D6FF;      /* string literals */
+
+  --acc:#79C0FF;
+  --acc-ink:#0D1117;
+  --code-bg:#161B22;
+  --code-fg:#C9D1D9;
+
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --display:"Bricolage Grotesque","Archivo",Impact,sans-serif;
+  --sans:"Archivo",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  --z-bar:20; --z-float:30; --z-skip:40;
+}
+:root[data-theme="light"]{
+  --paper:#FFFFFF; --panel:#F6F8FA; --sunken:#F6F8FA;
+  --ink:#24292F; --ink-hi:#010409; --ink-2:#424A53; --ink-3:#656C76;
+  --rule:#D0D7DE; --hair:#EAEEF2; --sel:#DDF4FF;
+  --red:#CF222E; --green:#1A7F37; --yellow:#9A6700; --orange:#BC4C00;
+  --blue:#0550AE; --purple:#8250DF; --cyan:#1B7C83; --str:#0A3069;
+  --acc:#0969DA; --acc-ink:#FFFFFF;
+  --code-bg:#F6F8FA; --code-fg:#24292F;
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+[hidden]{display:none!important;}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth;}
+[id]{scroll-margin-top:132px;}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto;}
+  *{animation:none!important;transition:none!important;}}
+::selection{background:var(--sel);color:var(--ink-hi);}
+
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--sans);font-size:16px;line-height:1.58;
+  -webkit-font-smoothing:antialiased;text-wrap:pretty;
+  padding-bottom:56px;
+}
+.state,.tick,.emit,.qa-n,.num,.pn{font-variant-numeric:tabular-nums;}
+.skip{
+  position:absolute;left:-9999px;top:0;z-index:var(--z-skip);
+  background:var(--acc);color:var(--acc-ink);padding:12px 18px;
+  font-family:var(--mono);font-size:12px;font-weight:700;
+}
+.skip:focus{left:0;}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;}
+
+/* ---------- navbar: an editor window ---------- */
+.bar{position:sticky;top:0;z-index:var(--z-bar);
+     background:var(--panel);border-bottom:1px solid var(--rule);}
+/* row 1: title bar */
+.bar-in{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 14px;max-width:960px;margin:0 auto;
+}
+.dots{display:flex;gap:6px;flex:0 0 auto;}
+.dots i{width:11px;height:11px;border-radius:50%;display:block;}
+.dots i:nth-child(1){background:#FF5F57;}
+.dots i:nth-child(2){background:#FEBC2E;}
+.dots i:nth-child(3){background:#28C840;}
+.brand{
+  font-family:var(--mono);font-size:11px;letter-spacing:.02em;
+  color:var(--ink-3);margin:0 auto;text-align:center;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.brand b{color:var(--ink-2);font-weight:500;}
+.tbtn{
+  font-family:var(--mono);font-size:14px;line-height:1;flex:0 0 auto;
+  min-width:34px;min-height:34px;border-radius:5px;
+  border:1px solid var(--rule);background:transparent;color:var(--ink-3);
+  cursor:pointer;transition:color .2s var(--ease),border-color .2s var(--ease);
+}
+.tbtn:hover{color:var(--blue);border-color:var(--blue);}
+.tbtn:active{transform:translateY(1px);}
+
+/* row 2: file tabs, full width so they are easy to thumb */
+.seg{
+  display:flex;max-width:960px;margin:0 auto;
+  border-top:1px solid var(--rule);
+}
+.seg button{
+  flex:1 1 0;min-width:0;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  font-family:var(--mono);font-size:11.5px;font-weight:500;
+  padding:11px 8px;min-height:42px;cursor:pointer;
+  background:var(--panel);color:var(--ink-3);
+  border:0;border-right:1px solid var(--rule);
+  border-top:2px solid transparent;border-radius:0;
+  transition:color .2s var(--ease),background .2s var(--ease),border-color .2s var(--ease);
+}
+.seg button:last-child{border-right:0;}
+.seg button .dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:currentColor;opacity:.55;}
+.seg button:hover:not([aria-selected="true"]){color:var(--ink);background:var(--paper);}
+/* the active tab joins the page below it, like a real editor tab */
+.seg button[aria-selected="true"]{
+  background:var(--paper);color:var(--ink-hi);
+  border-top-color:var(--blue);font-weight:700;
+}
+.seg button[aria-selected="true"] .dot{opacity:1;color:var(--blue);}
+.seg button:active{transform:translateY(1px);}
+
+/* row 3: breadcrumb path */
+.jump{
+  display:flex;gap:0;overflow-x:auto;max-width:960px;margin:0 auto;
+  scrollbar-width:none;-ms-overflow-style:none;
+  background:var(--paper);border-top:1px solid var(--rule);
+}
+.jump::-webkit-scrollbar{display:none;}
+.jump a{
+  flex:0 0 auto;font-family:var(--mono);font-size:10.5px;
+  padding:7px 11px;text-decoration:none;color:var(--ink-3);
+  white-space:nowrap;position:relative;
+  transition:color .2s var(--ease);
+}
+.jump a::after{content:"/";position:absolute;right:-2px;color:var(--rule);}
+.jump a:last-child::after{content:none;}
+.jump a:hover{color:var(--blue);}
+.jump a:active{color:var(--ink-hi);}
+
+.wrap{max-width:960px;margin:0 auto;padding:0 16px;}
+
+/* ---------- hero ---------- */
+.hero{padding:30px 0 22px;border-bottom:1px solid var(--rule);margin-bottom:26px;}
+.hero .eyebrow{
+  display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--acc-ink);background:var(--blue);
+  padding:4px 9px;margin:0 0 14px;font-weight:700;border-radius:3px;
+}
+.hero h1{
+  font-family:var(--display);font-weight:800;color:var(--ink-hi);
+  font-size:clamp(36px,12vw,60px);line-height:.96;
+  letter-spacing:-.03em;margin:0 0 14px;text-wrap:balance;
+}
+.hero p:not(.eyebrow){font-size:16px;color:var(--ink-2);margin:0 0 18px;max-width:62ch;}
+.tags{display:flex;flex-wrap:wrap;gap:6px;}
+.tags span{
+  font-family:var(--mono);font-size:10px;padding:4px 9px;letter-spacing:.03em;
+  border:1px solid var(--rule);color:var(--ink-2);background:var(--panel);border-radius:3px;
+}
+.tags span.mk{background:var(--blue);border-color:var(--blue);color:var(--acc-ink);font-weight:700;}
+
+h2.sec{
+  font-family:var(--display);font-size:clamp(25px,7.5vw,36px);font-weight:800;
+  color:var(--ink-hi);line-height:1.02;letter-spacing:-.02em;
+  margin:52px 0 10px;padding-top:24px;border-top:1px solid var(--rule);
+}
+h2.sec+p{color:var(--ink-2);margin:0 0 20px;font-size:15px;}
+
+/* ---------- lifecycle + filemap ---------- */
+h3.phase{
+  font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:700;margin:26px 0 10px;
+  padding-bottom:6px;border-bottom:1px solid var(--hair);
+}
+.flow{list-style:none;margin:0 0 24px;padding:0;counter-reset:f;}
+.flow li{
+  counter-increment:f;display:flex;gap:12px;align-items:flex-start;
+  padding:9px 0;font-size:14.5px;color:var(--ink-2);
+  border-bottom:1px solid var(--hair);
+}
+.flow li:last-child{border-bottom:0;}
+.flow li::before{
+  content:counter(f,decimal-leading-zero);
+  font-family:var(--mono);font-size:11px;font-weight:700;
+  color:var(--orange);flex:0 0 auto;
+}
+.filemap{
+  font-family:var(--mono);font-size:11.5px;line-height:1.8;
+  margin:0 0 24px;white-space:pre;overflow-x:auto;
+  background:var(--code-bg);color:var(--ink-2);
+  border:1px solid var(--rule);border-radius:5px;
+  padding:16px;-webkit-overflow-scrolling:touch;
+}
+.filemap b{color:var(--blue);font-weight:700;}
+
+/* ---------- steps ---------- */
+.step{border-top:1px solid var(--rule);padding-top:22px;margin-bottom:34px;}
+.step-head{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;}
+.num{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--orange);}
+.fname{font-family:var(--mono);font-size:13.5px;font-weight:700;color:var(--ink-hi);
+       word-break:break-word;}
+.role{
+  font-family:var(--mono);font-size:9px;letter-spacing:.09em;text-transform:uppercase;
+  padding:3px 7px;border-radius:3px;font-weight:700;
+  background:rgba(121,192,255,.13);color:var(--blue);border:1px solid var(--blue);
+}
+.role.v{background:rgba(126,231,135,.13);color:var(--green);border-color:var(--green);}
+.role.c{background:rgba(255,166,87,.13);color:var(--orange);border-color:var(--orange);}
+.step>p{color:var(--ink-2);margin:0 0 14px;font-size:15px;}
+
+/* code blocks - the editor pane */
+pre{
+  font-family:var(--mono);font-size:11.5px;line-height:1.72;
+  background:var(--code-bg);color:var(--code-fg);
+  border:1px solid var(--rule);border-radius:5px;
+  padding:15px 16px;margin:0 0 14px;overflow-x:auto;
+  white-space:pre;tab-size:4;-webkit-overflow-scrolling:touch;
+}
+pre .kw{color:var(--red);font-weight:500;}          /* keywords    */
+pre .cm{color:var(--ink-3);font-style:italic;}      /* comments    */
+pre .hi{color:var(--orange);font-weight:700;}       /* emphasis    */
+pre .st{color:var(--str);}                          /* strings     */
+pre .fn{color:var(--purple);}                       /* functions   */
+pre .va{color:var(--blue);}                         /* $variables  */
+pre .nu{color:var(--blue);}                         /* numbers     */
+
+.why,.note{
+  background:var(--panel);border:1px solid var(--rule);
+  border-left:3px solid var(--blue);border-radius:0 5px 5px 0;
+  padding:13px 15px;font-size:14.5px;color:var(--ink-2);
+}
+.why b,.why strong,.note b{color:var(--ink-hi);font-weight:700;}
+.why p,.note p{margin:0 0 10px;}
+.why p:last-child,.note p:last-child{margin:0;}
+code{
+  font-family:var(--mono);font-size:.88em;
+  background:var(--sunken);color:var(--cyan);
+  padding:1px 5px;border-radius:3px;overflow-wrap:break-word;
+}
+pre code{background:transparent;color:inherit;padding:0;}
+
+.warn,.trap{
+  background:rgba(255,123,114,.09);border:1px solid var(--rule);
+  border-left:3px solid var(--red);border-radius:0 5px 5px 0;
+  color:var(--ink-2);padding:13px 15px;font-size:14.5px;margin-top:14px;
+}
+.warn b,.trap b{color:var(--red);font-weight:700;}
+
+/* ---------- mistakes ---------- */
+.mistakes{display:grid;gap:0;border-top:1px solid var(--rule);}
+.mis{border-bottom:1px solid var(--hair);padding:14px 0;}
+.mis .m1{font-size:15px;color:var(--ink-hi);font-weight:600;margin-bottom:6px;}
+.mis .m2,.mis .m3{font-size:13.5px;color:var(--ink-2);display:flex;gap:8px;}
+.mis .m2::before{content:"\2717";color:var(--red);font-weight:700;flex:0 0 auto;}
+.mis .m3::before{content:"\2713";color:var(--green);font-weight:700;flex:0 0 auto;}
+
+/* ---------- memorise cards ---------- */
+.cards{display:grid;gap:0;border-top:1px solid var(--rule);}
+.card{border-bottom:1px solid var(--hair);padding:16px 0;}
+.card h3{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--yellow);margin:0 0 9px;font-weight:700;
+}
+.card pre{margin:0;font-size:11px;}
+
+/* ---------- Q7 simulation ---------- */
+.prog{border-top:1px solid var(--rule);padding-top:24px;margin-bottom:48px;}
+.prog-head{display:flex;align-items:center;flex-wrap:wrap;gap:9px;margin-bottom:8px;}
+.prog-head .pn{
+  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.09em;
+  color:var(--orange);
+}
+.prog-head h2{
+  font-family:var(--display);font-size:clamp(21px,6.2vw,28px);font-weight:800;
+  color:var(--ink-hi);margin:0;line-height:1.04;letter-spacing:-.02em;
+}
+.prog-head .mk{
+  font-family:var(--mono);font-size:10px;background:var(--panel);
+  border:1px solid var(--rule);color:var(--ink-3);padding:3px 7px;border-radius:3px;
+}
+.prog>.lead{color:var(--ink-2);margin:0 0 16px;font-size:15px;}
+
+.pass{border-left:1px solid var(--rule);padding:0 0 2px 14px;margin-left:7px;}
+.pass:last-child{border-left-color:transparent;}
+.tick{
+  display:inline-block;font-family:var(--mono);font-size:10px;font-weight:700;
+  background:var(--paper);border:1px solid var(--orange);color:var(--orange);
+  padding:3px 9px;margin:0 0 8px -23px;letter-spacing:.03em;border-radius:3px;
+}
+.tick.stop{border-color:var(--red);color:var(--red);}
+.pass .body{padding-bottom:16px;}
+.pass pre{margin:0 0 8px;font-size:11px;}
+.says{font-size:13.5px;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline;}
+.says b{color:var(--ink-hi);font-weight:700;}
+.emit{
+  font-family:var(--mono);font-size:10.5px;padding:3px 8px;border-radius:3px;
+  background:rgba(126,231,135,.12);color:var(--green);border:1px solid var(--green);
+}
+.emit.none{background:transparent;color:var(--ink-3);border:1px solid var(--hair);}
+.state{
+  font-family:var(--mono);font-size:10.5px;color:var(--ink-2);
+  border:1px solid var(--rule);background:var(--panel);padding:2px 7px;border-radius:3px;
+}
+/* the output panel is a terminal */
+.screen{
+  font-family:var(--mono);font-size:12px;line-height:1.75;
+  background:var(--sunken);color:var(--green);
+  border:1px solid var(--rule);border-radius:5px;
+  padding:15px 16px;margin:0 0 9px;
+  white-space:pre;overflow-x:auto;-webkit-overflow-scrolling:touch;
+}
+.caption{font-size:13.5px;color:var(--ink-3);margin:0 0 18px;}
+
+/* ---------- theory ---------- */
+.qa{border-top:1px solid var(--rule);padding-top:22px;margin-bottom:34px;}
+.qa-q{display:flex;gap:11px;align-items:flex-start;margin-bottom:12px;}
+.qa-n{
+  font-family:var(--mono);font-size:12px;font-weight:700;
+  color:var(--orange);flex:0 0 auto;margin-top:4px;
+}
+.qa-q h2{
+  font-family:var(--display);font-size:clamp(19px,5.5vw,26px);font-weight:800;
+  color:var(--ink-hi);margin:0;line-height:1.08;letter-spacing:-.015em;
+}
+.oneline{
+  background:var(--panel);border:1px solid var(--rule);
+  border-left:3px solid var(--yellow);border-radius:0 5px 5px 0;
+  padding:13px 15px;margin:0 0 15px;font-size:15px;color:var(--ink-hi);
+}
+.oneline b{
+  display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;
+  text-transform:uppercase;margin-bottom:5px;color:var(--yellow);font-weight:700;
+}
+.qa-body{font-size:15px;color:var(--ink-2);}
+.qa-body p{margin:0 0 12px;}
+.qa-body p:last-child{margin:0;}
+.qa-body pre{font-size:11px;}
+
+.cmp{border-top:1px solid var(--rule);margin-top:16px;}
+.cmp-h{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:9px 0;
+  border-bottom:1px solid var(--rule);}
+.cmp-h span{
+  font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--blue);font-weight:700;
+}
+.cmp-r{padding:10px 0;border-bottom:1px solid var(--hair);}
+.cmp-r .lbl{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:5px;
+}
+.cmp-r .vals{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13.5px;}
+.cmp-r .vals span:first-child{color:var(--ink-hi);}
+.cmp-r .vals span:last-child{color:var(--ink-2);}
+@media (max-width:560px){
+  .cmp-h{display:none;}
+  .cmp-r .vals{grid-template-columns:1fr;gap:7px;}
+  .cmp-r .vals span::before{
+    font-family:var(--mono);font-size:9px;letter-spacing:.09em;font-weight:700;
+    text-transform:uppercase;color:var(--blue);
+    display:block;margin-bottom:2px;
+  }
+  .cmp-r .vals span:first-child::before{content:attr(data-h);}
+  .cmp-r .vals span:last-child::before{content:attr(data-h);}
+}
+
+.totop{
+  position:fixed;right:16px;bottom:16px;z-index:var(--z-float);
+  width:46px;height:46px;border-radius:6px;
+  border:1px solid var(--rule);background:var(--panel);color:var(--blue);
+  font-size:17px;font-weight:700;cursor:pointer;display:none;
+  box-shadow:0 4px 18px rgba(0,0,0,.6);
+  transition:transform .14s var(--ease),border-color .2s var(--ease);
+}
+.totop.show{display:block;}
+.totop:hover{border-color:var(--blue);}
+.totop:active{transform:translateY(2px);}
+
+/* ---------- wider screens ---------- */
+@media (min-width:700px){
+  body{font-size:17px;}
+  .wrap{padding:0 26px;}
+  .hero{padding:44px 0 28px;}
+  .hero p{font-size:18px;}
+  pre{font-size:13px;padding:18px 20px;}
+  .card pre,.pass pre,.qa-body pre{font-size:12px;}
+  .screen{font-size:13.5px;padding:18px 20px;}
+  .fname{font-size:15px;}
+  .cards{grid-template-columns:1fr 1fr;gap:0 30px;}
+  .mistakes{grid-template-columns:1fr 1fr;gap:0 30px;}
+  .pass{display:grid;grid-template-columns:82px minmax(0,1fr);gap:0 16px;
+        padding-left:0;margin-left:8px;}
+  .tick{margin:2px 0 0 -14px;text-align:center;}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="bar"><div class="bar-in">
+<span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+<p class="brand">csc3222 &mdash; <b>final-revision</b></p>
+<button class="tbtn" id="tbtn" type="button" aria-label="Toggle theme">☾</button>
+</div>
+<nav class="seg" role="tablist" aria-label="Sections">
+<button type="button" data-pane="q6" role="tab" aria-selected="true"><span class="dot"></span>q6.php</button>
+<button type="button" data-pane="q7" role="tab" aria-selected="false"><span class="dot"></span>q7.php</button>
+<button type="button" data-pane="th" role="tab" aria-selected="false"><span class="dot"></span>theory.md</button>
+</nav>
+<nav class="jump" id="jump-q6" aria-label="Jump to Q6 section">
+<a href="#s-db-db-connection-php">connection</a>
+<a href="#s-model-user-php---adduser">addUser()</a>
+<a href="#s-view-register-php">radio/select/box</a>
+<a href="#s-controller-registration-handler-ph">validation</a>
+<a href="#s-session-and-cookies">session+cookie</a>
+<a href="#s-session-vs-cookie">the comparison</a>
+<a href="#s-view-superglobals-php">superglobals</a>
+<a href="#q6-mistakes">Mistakes</a><a href="#q6-cards">Memorise</a>
+</nav>
+<nav class="jump" id="jump-q7" hidden aria-label="Jump to Q7 program">
+<a href="#p-program-1">Prog 1</a>
+<a href="#p-program-2">Prog 2</a>
+<a href="#p-program-3">Prog 3</a>
+<a href="#p-program-4">Prog 4</a>
+<a href="#p-program-5">Prog 5</a>
+<a href="#p-program-6">Prog 6</a>
+</nav>
+<nav class="jump" id="jump-th" hidden aria-label="Jump to theory question">
+<a href="#t1">1. Session/Cookie</a>
+<a href="#t2">2. GET/POST</a>
+<a href="#t3">3. MVC</a>
+<a href="#t4">4. Validation</a>
+<a href="#t5">5. Superglobals</a>
+<a href="#t6">6. Prepared stmt</a>
+<a href="#t7">7. AJAX</a>
+<a href="#t8">8. JSON</a>
+<a href="#t9">9. Upload</a>
+<a href="#t10">10. Files/XML</a>
+</nav>
+</header>
+<main id="main">
+<section class="pane" id="pane-q6" role="tabpanel"><div class="wrap">
+<header class="hero">
+<p class="eyebrow">Question 6 &middot; 40 marks</p>
+<h1>Club Membership System</h1>
+<p>The catch-all question: a connection, an insert built from prepared statements, nine validation rules, radio buttons, a drop down and checkboxes, and a session sitting next to a cookie so the difference between them is impossible to miss.</p>
+<div class="tags">
+<span>Prepared statements</span>
+<span>Validation</span>
+<span>Session</span>
+<span>Cookies</span>
+<span>Radio / Select / Checkbox</span>
+<span>Superglobals</span>
+<span class="mk">MVC</span></div></header>
+<h3 class="phase">Request lifecycle</h3>
+<ol class="flow">
+<li>Browser asks for <code>index.php</code></li>
+<li>Router reads <code>$_SESSION</code> and picks a view</li>
+<li>Form collects radio, select and checkbox values</li>
+<li>Controller validates all nine rules</li>
+<li>Model inserts with a prepared statement</li>
+<li>Controller sets session + cookie, redirects</li>
+</ol>
+<h3 class="phase">Files you must write</h3>
+<pre class="filemap">mvc/
+  <b>index.php</b>          router
+  db/
+    db_connection.php
+  model/
+    <b>User.php</b>           all SQL
+  controller/
+    registration-handler.php
+    login-handler.php
+    logout-handler.php
+    theme-handler.php
+    forget-me-handler.php
+  view/
+    register.php      radio/select/
+                      checkbox
+    login.php
+    home.php
+    <b>superglobals.php</b>
+    layout/header.php
+  sql/schema.sql</pre>
+<article class="step" id="s-db-db-connection-php">
+<div class="step-head">
+<span class="num">01</span>
+<span class="fname">db/db_connection.php</span>
+<span class="role ">DB</span>
+</div>
+<p>Four values are always required. The fifth is optional.</p>
+<pre><span class="kw">CLASS</span> DBConnection
+
+    private host     = <span class="st">'localhost'</span>   <span class="cm">1. where MySQL runs</span>
+    private username = <span class="st">'root'</span>        <span class="cm">2. DB user         </span>
+    private password = <span class="st">''</span>            <span class="cm">3. blank on XAMPP  </span>
+    private dbname   = <span class="st">'wtm'</span>         <span class="cm">4. database name   </span>
+    <span class="cm">5. port = 3306 - optional, defaults to this</span>
+
+    <span class="kw">FUNCTION</span> <span class="fn">connect</span>()
+        conn = new <span class="fn">mysqli</span>(host, username, password, dbname)
+        <span class="kw">IF</span> conn -&gt; connect_error <span class="kw">THEN</span>
+            <span class="hi">die</span>(<span class="st">"Connection failed: "</span> . conn-&gt;connect_error)
+        <span class="kw">END IF</span>
+        <span class="kw">RETURN</span> conn
+    <span class="kw">END</span> <span class="kw">FUNCTION</span>
+
+<span class="kw">END</span> <span class="kw">CLASS</span></pre>
+<div class="why"><p>Name all four if you are asked: <b>host, username, password, database name</b>. The port is the optional fifth and defaults to 3306.</p><p>The <code>die()</code> matters. Without it a wrong password produces a blank white page and no clue why.</p></div>
+</article>
+<article class="step" id="s-model-user-php---adduser">
+<div class="step-head">
+<span class="num">02</span>
+<span class="fname">model/User.php → addUser()</span>
+<span class="role ">MODEL</span>
+</div>
+<p>The add-user query. Seven placeholders, seven letters.</p>
+<pre><span class="kw">FUNCTION</span> <span class="fn">addUser</span>(username, email, password,
+                 gender, department, interests, newsletter)
+
+    sql = "<span class="kw">INSERT</span> <span class="kw">INTO</span> users
+           (username, email, password, gender,
+            department, interests, newsletter)
+           <span class="kw">VALUES</span> (<span class="hi">?, ?, ?, ?, ?, ?, ?</span>)"
+
+    connection = <span class="fn">establishConnection</span>()
+    stmt = connection -&gt; <span class="hi">prepare</span>(sql)
+
+    <span class="cm">one letter per ? , in the SAME order</span>
+    <span class="cm">s = string   i = integer           </span>
+    <span class="cm">d = decimal  b = blob              </span>
+    stmt -&gt; <span class="hi">bind_param('ssssssi'</span>, username, email, password,
+                          gender, department, interests, newsletter)
+
+    <span class="kw">IF</span> stmt -&gt; <span class="fn">execute</span>() <span class="kw">THEN</span>
+        <span class="kw">RETURN</span> connection -&gt; insert_id    <span class="cm">the new row's id</span>
+    <span class="kw">ELSE</span>
+        <span class="kw">RETURN</span> false
+    <span class="kw">END IF</span>
+<span class="kw">END</span> <span class="kw">FUNCTION</span></pre>
+<div class="why"><p><code>'ssssssi'</code> &mdash; count them: six strings, then one integer for <code>newsletter</code>. The letters must match the question marks <b>one for one, in order</b>. Get the count wrong and MySQL says <i>Number of variables doesn't match parameters</i>.</p><p><b>Why this stops SQL injection:</b> the query text goes to MySQL first, with the question marks still in it. The values follow separately, afterwards. MySQL already knows what the query looks like, so a value can never change its shape &mdash; typing <code>' OR '1'='1</code> just stores that as a username.</p></div>
+</article>
+<article class="step" id="s-view-register-php">
+<div class="step-head">
+<span class="num">03</span>
+<span class="fname">view/register.php</span>
+<span class="role v">VIEW</span>
+</div>
+<p>Radio, drop down and checkbox &mdash; and what each one actually sends.</p>
+<pre><span class="cm">---------- RADIO ----------</span>
+<span class="cm">all three share ONE name -&gt; that is what makes</span>
+<span class="cm">them a group where only one can be chosen     </span>
+&lt;input type=<span class="st">"radio"</span> name=<span class="st">"gender"</span> value=<span class="st">"male"</span>&gt;
+&lt;input type=<span class="st">"radio"</span> name=<span class="st">"gender"</span> value=<span class="st">"female"</span>&gt;
+&lt;input type=<span class="st">"radio"</span> name=<span class="st">"gender"</span> value=<span class="st">"other"</span>&gt;
+<span class="cm">sends: gender=female     sends NOTHING if none picked</span>
+
+
+<span class="cm">---------- DROP DOWN ----------</span>
+<span class="cm">the name goes on the SELECT, not on the OPTION</span>
+&lt;select <span class="hi">name="department"</span>&gt;
+    &lt;option value=<span class="st">""</span>&gt;-- Please choose --&lt;/option&gt;
+    &lt;option value=<span class="st">"CSE"</span>&gt;<span class="kw">CSE</span>&lt;/option&gt;
+    &lt;option value=<span class="st">"CS"</span>&gt;<span class="kw">CS</span>&lt;/option&gt;
+&lt;/select&gt;
+<span class="cm">sends the chosen OPTION's value=  -&gt;  department=CSE</span>
+
+
+<span class="cm">---------- CHECKBOXES, many ----------</span>
+<span class="cm">the <span class="hi"> [] </span> is what makes <span class="kw">PHP</span> collect an <span class="kw">ARRAY</span> </span>
+<span class="cm">without it, only the LAST ticked box survives</span>
+&lt;input type=<span class="st">"checkbox"</span> name=<span class="st">"interests[]"</span> value=<span class="st">"Programming"</span>&gt;
+&lt;input type=<span class="st">"checkbox"</span> name=<span class="st">"interests[]"</span> value=<span class="st">"Robotics"</span>&gt;
+&lt;input type=<span class="st">"checkbox"</span> name=<span class="st">"interests[]"</span> value=<span class="st">"Debate"</span>&gt;
+<span class="cm">sends: interests = ['Programming', 'Debate']</span>
+
+
+<span class="cm">---------- CHECKBOX, single ----------</span>
+&lt;input type=<span class="st">"checkbox"</span> name=<span class="st">"terms"</span> value=<span class="st">"1"</span>&gt;
+<span class="cm">ticked     -&gt; terms=1         </span>
+<span class="cm">NOT ticked -&gt; <span class="hi">sends nothing at all</span></span></pre>
+<div class="why"><p>Four facts the examiner asks for directly:</p><p><b>Radio</b> &mdash; the shared <code>name</code> is what groups them.<br><b>Select</b> &mdash; <code>name</code> on the <code>&lt;select&gt;</code>, and the chosen option's <code>value</code> is sent.<br><b>Checkboxes</b> &mdash; <code>name="interests[]"</code>, and the square brackets are the entire answer.<br><b>Unticked</b> &mdash; sends <i>nothing</i>, which is why PHP must use <code>isset()</code>.</p></div>
+<div class="warn"><b>An unticked checkbox and an unchosen radio group send nothing at all.</b> Reading <code>$_POST['newsletter']</code> directly then gives <i>Undefined array key</i>. Always <code>isset($_POST['newsletter']) ? 1 : 0</code>.</div>
+</article>
+<article class="step" id="s-controller-registration-handler-ph">
+<div class="step-head">
+<span class="num">04</span>
+<span class="fname">controller/registration-handler.php</span>
+<span class="role c">CONTROLLER</span>
+</div>
+<p>Reading those three input types, then nine rules.</p>
+<pre><span class="kw">IF</span> <span class="va">$_SERVER</span>[<span class="st">'REQUEST_METHOD'</span>] is <span class="st">'POST'</span> <span class="kw">THEN</span>
+
+    username = <span class="va">$_POST</span>[<span class="st">'username'</span>]
+
+    <span class="cm">RADIO - may be absent, so isset</span>
+    gender = <span class="hi">isset</span>(<span class="va">$_POST</span>[<span class="st">'gender'</span>]) ? <span class="va">$_POST</span>[<span class="st">'gender'</span>] : <span class="st">''</span>
+
+    <span class="cm">DROP DOWN - always present</span>
+    department = <span class="va">$_POST</span>[<span class="st">'department'</span>]
+
+    <span class="cm">CHECKBOXES - an ARRAY, absent if none ticked</span>
+    interests_array = <span class="fn">isset</span>(<span class="va">$_POST</span>[<span class="st">'interests'</span>])
+                      ? <span class="va">$_POST</span>[<span class="st">'interests'</span>] : []
+
+    <span class="cm">SINGLE CHECKBOX - present only when ticked</span>
+    newsletter = <span class="fn">isset</span>(<span class="va">$_POST</span>[<span class="st">'newsletter'</span>]) ? <span class="nu">1</span> : <span class="nu">0</span>
+    terms      = <span class="fn">isset</span>(<span class="va">$_POST</span>[<span class="st">'terms'</span>])
+
+    errors = empty array
+
+    <span class="kw">IF</span> anything empty        -&gt; errors[<span class="st">'username'</span>]
+    <span class="kw">ELSE IF</span> <span class="fn">strlen</span>(username) &lt; <span class="nu">4</span> -&gt; errors[<span class="st">'username'</span>]
+    <span class="kw">IF</span> email invalid <span class="kw">OR</span> not ending <span class="st">'aiub.edu'</span>
+                                 -&gt; errors[<span class="st">'email'</span>]
+    <span class="kw">IF</span> <span class="fn">strlen</span>(password) &lt; <span class="nu">6</span>  -&gt; errors[<span class="st">'password'</span>]
+    <span class="kw">IF</span> password != confirm   -&gt; errors[<span class="st">'confirm_password'</span>]
+    <span class="kw">IF</span> gender not in [male, female, other]
+                                 -&gt; errors[<span class="st">'gender'</span>]
+    <span class="kw">IF</span> <span class="fn">count</span>(interests_array) == <span class="nu">0</span> -&gt; errors[<span class="st">'interests'</span>]
+    <span class="kw">IF</span> terms is false        -&gt; errors[<span class="st">'terms'</span>]
+    <span class="kw">IF</span> model -&gt; <span class="fn">usernameExists</span>(username)
+                                 -&gt; errors[<span class="st">'username'</span>]
+
+    <span class="kw">IF</span> <span class="fn">count</span>(errors) &gt; <span class="nu">0</span> <span class="kw">THEN</span>
+        <span class="va">$_SESSION</span>[<span class="st">'errors'</span>] = errors
+        redirect back to the form, <span class="hi">exit()</span>
+    <span class="kw">END IF</span>
+
+    <span class="cm">array -&gt; one string for the database</span>
+    interests = <span class="hi">implode(',', interests_array)</span>
+    <span class="cm">['Programming','Debate'] -&gt; "Programming,Debate"</span>
+
+    model -&gt; <span class="fn">addUser</span>(... , interests, newsletter)
+<span class="kw">END IF</span></pre>
+<div class="why"><p><b>Why check twice?</b> The JavaScript runs on the student's own machine. They can switch it off, or send the POST from a tool, and your form never runs. The server check is the only one that cannot be skipped.</p><p><b>Why rule 9 cannot be JavaScript:</b> the browser has no idea who is already registered. Only a database query can answer that, which is also why the column is declared <code>UNIQUE</code>.</p></div>
+</article>
+<article class="step" id="s-session-and-cookies">
+<div class="step-head">
+<span class="num">05</span>
+<span class="fname">Session and cookies</span>
+<span class="role c">CONTROLLER</span>
+</div>
+<p>Set both at the same moment, then watch logout treat them differently.</p>
+<pre><span class="cm">---------- LOGIN ----------</span>
+row = model -&gt; <span class="fn">loginCheck</span>(username, password)
+<span class="kw">IF</span> row is not null <span class="kw">THEN</span>
+    <span class="cm">SESSION - on the server</span>
+    <span class="hi">$_SESSION['username'</span>]   = row[<span class="st">'username'</span>]
+    <span class="hi">$_SESSION['department'</span>] = row[<span class="st">'department'</span>]
+
+    <span class="cm">COOKIE - in the browser, 7 days</span>
+    <span class="hi">setcookie</span>(<span class="st">'last_user'</span>, row[<span class="st">'username'</span>],
+              <span class="hi">time() + (60 * 60 * 24 * 7)</span>, <span class="st">'/'</span>)
+<span class="kw">END IF</span>
+
+
+<span class="cm">---------- LOGOUT ----------</span>
+<span class="fn">session_start</span>()
+<span class="fn">session_unset</span>()      <span class="cm">empties $_SESSION      </span>
+<span class="fn">session_destroy</span>()    <span class="cm">destroys it on the server</span>
+<span class="cm">the last_user cookie is deliberately NOT touched</span>
+
+
+<span class="cm">---------- THEME TOGGLE ----------</span>
+<span class="kw">IF</span> <span class="fn">isset</span>(<span class="va">$_COOKIE</span>[<span class="st">'theme'</span>]) <span class="kw">AND</span> == <span class="st">'dark'</span> <span class="kw">THEN</span>
+    <span class="fn">setcookie</span>(<span class="st">'theme'</span>, <span class="st">'light'</span>, one_week, <span class="st">'/'</span>)
+<span class="kw">ELSE</span>
+    <span class="fn">setcookie</span>(<span class="st">'theme'</span>, <span class="st">'dark'</span>,  one_week, <span class="st">'/'</span>)
+<span class="kw">END IF</span>
+
+<span class="cm">reading it back, on every page</span>
+theme = <span class="fn">isset</span>(<span class="va">$_COOKIE</span>[<span class="st">'theme'</span>]) ? <span class="va">$_COOKIE</span>[<span class="st">'theme'</span>] : <span class="st">'light'</span>
+
+
+<span class="cm">---------- DELETING A COOKIE ----------</span>
+<span class="cm">set it again with an expiry in the <span class="hi">PAST</span></span>
+<span class="fn">setcookie</span>(<span class="st">'last_user'</span>, <span class="st">''</span>, <span class="hi">time() - 3600</span>, <span class="st">'/'</span>)</pre>
+<div class="why"><p>After logout the session is gone but the cookie remains, so the login page can still say <i>Welcome back, nusrat</i>. That single behaviour is the clearest possible demonstration of the difference, and it is why the two are set side by side here.</p><p>A cookie expiry is an <b>absolute moment in time</b>, not a duration &mdash; always <code>time() + seconds</code>.</p></div>
+<div class="warn"><b>Never leave a delete line in the toggle handler.</b> A trailing <code>setcookie('theme', '', time()-3600)</code> runs on every request and wipes the cookie you just set, so the theme can never change. Keep deletion in its own file.</div>
+</article>
+<article class="step" id="s-session-vs-cookie">
+<div class="step-head">
+<span class="num">06</span>
+<span class="fname">Session vs Cookie</span>
+<span class="role ">CONCEPT</span>
+</div>
+<p>The comparison, and the one sentence that explains it all.</p>
+<pre>                  <span class="kw">SESSION</span>              <span class="kw">COOKIE</span>
+
+Stored where      on the <span class="hi">SERVER</span>        in the <span class="hi">BROWSER</span>
+Created with      <span class="fn">session_start</span>()      <span class="fn">setcookie</span>()
+Read with         <span class="va">$_SESSION</span>            <span class="va">$_COOKIE</span>
+Lifetime          until browser        until the expiry
+                  closes / destroy     date you set
+Deleted with      <span class="fn">session_destroy</span>()    an expiry in the <span class="kw">PAST</span>
+Size limit        large (server)       about <span class="hi">4 KB</span>
+User can edit?    <span class="hi">No</span> - they only       <span class="hi">Yes</span> - it sits on
+                  hold the id          their machine
+Good for          login state,         theme, <span class="st">"remember me"</span>,
+                  anything private     preferences</pre>
+<div class="why"><p><b>Why login is a session and the theme is a cookie:</b> a cookie lives on the user's own computer, so they can edit it. Nobody may edit their way into being logged in, so login state belongs in a session. A theme is harmless and should still be there tomorrow, so it belongs in a cookie.</p><p>The browser only ever holds the session <b>id</b>. The actual values sit on the server, out of reach.</p></div>
+</article>
+<article class="step" id="s-view-superglobals-php">
+<div class="step-head">
+<span class="num">07</span>
+<span class="fname">view/superglobals.php</span>
+<span class="role v">VIEW</span>
+</div>
+<p>A superglobal is an array PHP builds for you, available everywhere.</p>
+<pre><span class="hi">$_GET</span>      values from the <span class="kw">URL</span>
+           ?target=x&amp;demo=hello  -&gt;  <span class="va">$_GET</span>[<span class="st">'demo'</span>]
+
+<span class="hi">$_POST</span>     values from a form with method=<span class="st">"post"</span>
+
+<span class="hi">$_REQUEST</span>  <span class="va">$_GET</span> and <span class="va">$_POST</span> together
+
+<span class="hi">$_SESSION</span>  kept on the <span class="kw">SERVER</span>, dies at logout
+           needs <span class="fn">session_start</span>() first
+
+<span class="hi">$_COOKIE</span>   kept in the <span class="kw">BROWSER</span>, survives logout
+
+<span class="hi">$_FILES</span>    uploaded files. <span class="kw">STAYS</span> <span class="kw">EMPTY</span> unless the form
+           has enctype=<span class="st">"multipart/form-data"</span>
+
+<span class="hi">$_SERVER</span>   information about the request and server
+           <span class="kw">REQUEST_METHOD</span>   <span class="st">'GET'</span> or <span class="st">'POST'</span>
+           <span class="kw">PHP_SELF</span>         path of the running script
+           <span class="kw">SCRIPT_NAME</span>      same, from the server
+           <span class="kw">HTTP_HOST</span>        e.g. localhost
+           <span class="kw">QUERY_STRING</span>     everything after the ?
+           <span class="kw">HTTP_USER_AGENT</span>  which browser is asking
+
+<span class="cm">printing one to inspect it</span>
+<span class="fn">print_r</span>(<span class="va">$_POST</span>);   <span class="kw">OR</span>   <span class="fn">var_dump</span>(<span class="va">$_POST</span>);</pre>
+<div class="why"><p><b>Definition to write down:</b> a superglobal is a built-in array that PHP fills in automatically and that is available in every file and inside every function, without declaring <code>global</code>.</p><p><code>$_SERVER['REQUEST_METHOD']</code> is the one you use most &mdash; it is what every controller checks to tell a real form submission from someone simply opening the file in the address bar.</p></div>
+<div class="warn"><b>The one condition that leaves <code>$_FILES</code> empty:</b> a form without <code>enctype="multipart/form-data"</code>. The browser then sends only the file's <i>name</i> as ordinary text, and no error is shown anywhere.</div>
+</article>
+<h2 class="sec" id="q6-mistakes">Where the marks are lost</h2>
+<p>Each of these produces a page that looks almost right.</p>
+<div class="mistakes">
+<div class="mis"><div class="m1"><code>name="interests"</code> without <code>[]</code></div><div class="m2">Only the last ticked box arrives</div><div class="m3"><code>name="interests[]"</code></div></div>
+<div class="mis"><div class="m1">Reading an unticked checkbox directly</div><div class="m2"><i>Undefined array key 'newsletter'</i></div><div class="m3"><code>isset($_POST['newsletter']) ? 1 : 0</code></div></div>
+<div class="mis"><div class="m1">Radio buttons given different names</div><div class="m2">All can be selected at once</div><div class="m3">One shared <code>name</code> for the group</div></div>
+<div class="mis"><div class="m1"><code>name</code> put on <code>&lt;option&gt;</code></div><div class="m2">Nothing arrives for the drop down</div><div class="m3"><code>name</code> goes on the <code>&lt;select&gt;</code></div></div>
+<div class="mis"><div class="m1">Wrong letter count in <code>bind_param</code></div><div class="m2"><i>Number of variables doesn't match parameters</i></div><div class="m3">One letter per <code>?</code>: <code>'ssssssi'</code></div></div>
+<div class="mis"><div class="m1">Storing the interests array straight into MySQL</div><div class="m2"><i>Array to string conversion</i>, column says "Array"</div><div class="m3"><code>implode(',', $interests_array)</code></div></div>
+<div class="mis"><div class="m1">Login state kept in a cookie</div><div class="m2">Anyone can edit it and log in as someone else</div><div class="m3">Login belongs in <code>$_SESSION</code></div></div>
+<div class="mis"><div class="m1">A cookie-delete line left in the toggle</div><div class="m2">Theme never changes</div><div class="m3">Keep deletion in its own handler</div></div>
+<div class="mis"><div class="m1"><code>$_COOKIE['theme']</code> read without <code>isset</code></div><div class="m2"><i>Undefined array key</i> on a first visit</div><div class="m3"><code>isset(...) ? ... : 'light'</code></div></div>
+<div class="mis"><div class="m1"><code>session_start()</code> after some HTML</div><div class="m2"><i>headers already sent</i>, redirect fails</div><div class="m3">First line of the file, above the doctype</div></div>
+</div>
+<h2 class="sec" id="q6-cards">Memorise these exactly</h2>
+<p>The lines you will actually have to write by hand.</p>
+<div class="cards">
+<div class="card"><h3>Prepared insert</h3><pre><span class="va">$sql</span> = "<span class="kw">INSERT</span> <span class="kw">INTO</span> users
+        (username, email, gender)
+        <span class="kw">VALUES</span> (?, ?, ?)";
+<span class="va">$stmt</span> = <span class="va">$conn</span>-&gt;<span class="fn">prepare</span>(<span class="va">$sql</span>);
+<span class="va">$stmt</span>-&gt;<span class="fn">bind_param</span>(<span class="st">'sss'</span>,
+     <span class="va">$username</span>, <span class="va">$email</span>, <span class="va">$gender</span>);
+<span class="va">$stmt</span>-&gt;<span class="fn">execute</span>();
+return <span class="va">$conn</span>-&gt;insert_id;
+
+<span class="cm">s=string i=int d=decimal b=blob</span></pre></div>
+<div class="card"><h3>The three input types</h3><pre>&lt;input type=<span class="st">"radio"</span> name=<span class="st">"gender"</span>
+       value=<span class="st">"male"</span>&gt;
+
+&lt;select name=<span class="st">"department"</span>&gt;
+  &lt;option value=<span class="st">"CSE"</span>&gt;<span class="kw">CSE</span>&lt;/option&gt;
+&lt;/select&gt;
+
+&lt;input type=<span class="st">"checkbox"</span>
+       name=<span class="st">"interests[]"</span>
+       value=<span class="st">"Robotics"</span>&gt;</pre></div>
+<div class="card"><h3>Reading them in PHP</h3><pre><span class="va">$gender</span> = <span class="fn">isset</span>(<span class="va">$_POST</span>[<span class="st">'gender'</span>])
+        ? <span class="va">$_POST</span>[<span class="st">'gender'</span>] : <span class="st">''</span>;
+
+<span class="va">$list</span> = <span class="fn">isset</span>(<span class="va">$_POST</span>[<span class="st">'interests'</span>])
+      ? <span class="va">$_POST</span>[<span class="st">'interests'</span>] : [];
+
+<span class="va">$news</span> = <span class="fn">isset</span>(<span class="va">$_POST</span>[<span class="st">'newsletter'</span>])
+      ? <span class="nu">1</span> : <span class="nu">0</span>;
+
+<span class="va">$interests</span> = <span class="fn">implode</span>(<span class="st">','</span>, <span class="va">$list</span>);</pre></div>
+<div class="card"><h3>Session</h3><pre><span class="fn">session_start</span>();
+<span class="va">$_SESSION</span>[<span class="st">'username'</span>] = <span class="va">$u</span>;
+
+<span class="cm">destroy</span>
+<span class="fn">session_unset</span>();
+<span class="fn">session_destroy</span>();</pre></div>
+<div class="card"><h3>Cookie, 7 days</h3><pre><span class="fn">setcookie</span>(<span class="st">'last_user'</span>, <span class="va">$u</span>,
+    <span class="fn">time</span>() + (<span class="nu">60</span>*<span class="nu">60</span>*<span class="nu">24</span>*<span class="nu">7</span>), <span class="st">'/'</span>);
+
+<span class="cm">read</span>
+<span class="fn">isset</span>(<span class="va">$_COOKIE</span>[<span class="st">'last_user'</span>])
+
+<span class="cm">delete: expiry in the PAST</span>
+<span class="fn">setcookie</span>(<span class="st">'last_user'</span>, <span class="st">''</span>,
+    <span class="fn">time</span>() - <span class="nu">3600</span>, <span class="st">'/'</span>);</pre></div>
+<div class="card"><h3>Superglobals</h3><pre><span class="va">$_GET</span>      <span class="kw">URL</span> values
+<span class="va">$_POST</span>     form values
+<span class="va">$_REQUEST</span>  both together
+<span class="va">$_SESSION</span>  server side
+<span class="va">$_COOKIE</span>   browser side
+<span class="va">$_FILES</span>    needs enctype
+<span class="va">$_SERVER</span>   request info</pre></div>
+</div>
+</div></section>
+<section class="pane" id="pane-q7" role="tabpanel" hidden><div class="wrap">
+<header class="hero">
+<p class="eyebrow">Question 7 &middot; 30 marks</p>
+<h1>Watching the Loop Run</h1>
+<p>Output tracing is not guesswork. Every program is unrolled one pass at a time: what the condition asks, what the answer is, what gets printed, and what every variable holds afterwards.</p>
+<div class="tags"><span>Arrays</span><span>for / foreach / while</span><span>if / else if</span><span>break &amp; continue</span><span class="mk">VERIFIED ON PHP 8.2</span></div></header>
+<div class="note" style="margin-bottom:26px"><p><b>How to trace a loop, every time:</b></p><p>1. Write the variables down the side and give each a starting value.<br>2. Do <b>one</b> pass out loud: test the condition, run the body, update.<br>3. Write printed text on a separate &lsquo;screen&rsquo; line as you go.<br>4. Repeat until the condition fails &mdash; then remember the counter was increased <i>one last time</i>.</p></div>
+<article class="prog" id="p-program-1">
+<div class="prog-head">
+<span class="pn">PROGRAM 1</span>
+<h2>Indexed array, for loop, if / else</h2>
+<span class="mk">5 MARKS</span></div>
+<p class="lead">The plainest possible loop. Get the habit right here and the other five are the same motion.</p>
+<h3 class="phase">The code</h3>
+<pre><span class="va">$numbers</span> = [<span class="nu">12</span>, <span class="nu">7</span>, <span class="nu">20</span>, <span class="nu">5</span>, <span class="nu">18</span>];
+<span class="va">$sum</span> = <span class="nu">0</span>;
+<span class="kw">for</span> (<span class="va">$i</span> = <span class="nu">0</span>; <span class="va">$i</span> &lt; <span class="fn">count</span>(<span class="va">$numbers</span>); <span class="va">$i</span>++) {
+    <span class="kw">if</span> (<span class="va">$numbers</span>[<span class="va">$i</span>] % <span class="nu">2</span> == <span class="nu">0</span>) {
+        echo <span class="va">$numbers</span>[<span class="va">$i</span>] . <span class="st">" is even&lt;br&gt;"</span>;
+        <span class="va">$sum</span> = <span class="va">$sum</span> + <span class="va">$numbers</span>[<span class="va">$i</span>];
+    } <span class="kw">else</span> {
+        echo <span class="va">$numbers</span>[<span class="va">$i</span>] . <span class="st">" is odd&lt;br&gt;"</span>;
+    }
+}
+echo <span class="st">"Sum of even numbers: "</span> . <span class="va">$sum</span>;</pre>
+<h3 class="phase">Unrolled, one pass at a time</h3>
+<div class="pass">
+<div class="tick">start</div>
+<div class="body">
+<pre><span class="va">$numbers</span> = [<span class="nu">12</span>, <span class="nu">7</span>, <span class="nu">20</span>, <span class="nu">5</span>, <span class="nu">18</span>]   <span class="cm">count is 5</span>
+<span class="va">$sum</span>     = <span class="nu">0</span>
+<span class="va">$i</span>       = <span class="nu">0</span></pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$sum = 0</span>
+<span>Nothing printed yet.</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$i = 0</div>
+<div class="body">
+<pre><span class="nu">0</span> &lt; <span class="nu">5</span> ?  <span class="kw">yes</span>
+<span class="va">$numbers</span>[<span class="nu">0</span>] is <span class="nu">12</span>  -&gt;  <span class="nu">12</span> % <span class="nu">2</span> == <span class="nu">0</span> ?  <span class="kw">yes, even</span></pre>
+<div class="says">
+<span class="emit">prints 12 is even</span>
+<span class="state">$sum = 0 + 12 = 12</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$i = 1</div>
+<div class="body">
+<pre><span class="nu">1</span> &lt; <span class="nu">5</span> ?  <span class="kw">yes</span>
+<span class="va">$numbers</span>[<span class="nu">1</span>] is <span class="nu">7</span>   -&gt;  <span class="nu">7</span> % <span class="nu">2</span> == <span class="nu">0</span> ?  <span class="kw">no, odd</span></pre>
+<div class="says">
+<span class="emit">prints 7 is odd</span>
+<span class="state">$sum stays 12</span>
+<span>The <code>else</code> branch does not touch <code>$sum</code>.</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$i = 2</div>
+<div class="body">
+<pre><span class="nu">2</span> &lt; <span class="nu">5</span> ?  <span class="kw">yes</span>
+<span class="va">$numbers</span>[<span class="nu">2</span>] is <span class="nu">20</span>  -&gt;  <span class="nu">20</span> % <span class="nu">2</span> == <span class="nu">0</span> ?  <span class="kw">yes, even</span></pre>
+<div class="says">
+<span class="emit">prints 20 is even</span>
+<span class="state">$sum = 12 + 20 = 32</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$i = 3</div>
+<div class="body">
+<pre><span class="nu">3</span> &lt; <span class="nu">5</span> ?  <span class="kw">yes</span>
+<span class="va">$numbers</span>[<span class="nu">3</span>] is <span class="nu">5</span>   -&gt;  <span class="nu">5</span> % <span class="nu">2</span> == <span class="nu">0</span> ?  <span class="kw">no, odd</span></pre>
+<div class="says">
+<span class="emit">prints 5 is odd</span>
+<span class="state">$sum stays 32</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$i = 4</div>
+<div class="body">
+<pre><span class="nu">4</span> &lt; <span class="nu">5</span> ?  <span class="kw">yes</span>
+<span class="va">$numbers</span>[<span class="nu">4</span>] is <span class="nu">18</span>  -&gt;  <span class="nu">18</span> % <span class="nu">2</span> == <span class="nu">0</span> ?  <span class="kw">yes, even</span></pre>
+<div class="says">
+<span class="emit">prints 18 is even</span>
+<span class="state">$sum = 32 + 18 = 50</span>
+</div></div></div>
+<div class="pass">
+<div class="tick stop">$i = 5</div>
+<div class="body">
+<pre><span class="va">$i</span>++ makes <span class="va">$i</span> = <span class="nu">5</span>
+<span class="nu">5</span> &lt; <span class="nu">5</span> ?  <span class="hi">NO</span>  -&gt;  the loop stops here</pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$i = 5, $sum = 50</span>
+<span>The body did <b>not</b> run a sixth time.</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">after</div>
+<div class="body">
+<pre>echo <span class="st">"Sum of even numbers: "</span> . <span class="va">$sum</span>;</pre>
+<div class="says">
+<span class="emit">prints Sum of even numbers: 50</span>
+<span class="state">$sum = 50</span>
+</div></div></div>
+<h3 class="phase">What the browser shows</h3>
+<div class="screen">12 is even
+7 is odd
+20 is even
+5 is odd
+18 is even
+Sum of even numbers: 50</div>
+<p class="caption">Each <code>&lt;br&gt;</code> ends a line, so five array items give five lines, and the total is printed on a sixth.</p>
+<div class="note" style="margin-top:14px"><p><b>The question they always add:</b> how many times did the body run, and what is <code>$i</code> at the end?</p><p>The body ran <b>5</b> times &mdash; once per item. But <code>$i</code> ends up as <b>5</b>, not 4. The order is always: run the body, then <code>$i++</code>, <i>then</i> test the condition. So the counter always ends one past the last value it actually used.</p><p>Sum of the even ones: 12 + 20 + 18 = <b>50</b>.</p></div>
+</article>
+<article class="prog" id="p-program-2">
+<div class="prog-head">
+<span class="pn">PROGRAM 2</span>
+<h2>Associative array, foreach, if / else if / else</h2>
+<span class="mk">5 MARKS</span></div>
+<p class="lead">An if/else-if chain stops at the first true condition. That single fact is the whole answer here.</p>
+<h3 class="phase">The code</h3>
+<pre><span class="va">$marks</span> = <span class="fn">array</span>(<span class="st">"Rahim"</span> =&gt; <span class="nu">78</span>, <span class="st">"Karim"</span> =&gt; <span class="nu">92</span>,
+               <span class="st">"Ayesha"</span> =&gt; <span class="nu">55</span>, <span class="st">"Nusrat"</span> =&gt; <span class="nu">43</span>);
+<span class="kw">foreach</span> (<span class="va">$marks</span> <span class="kw">as</span> <span class="va">$name</span> =&gt; <span class="va">$mark</span>) {
+    <span class="kw">if</span> (<span class="va">$mark</span> &gt;= <span class="nu">90</span>)      { <span class="va">$grade</span> = <span class="st">"A+"</span>; }
+    <span class="kw">else if</span> (<span class="va">$mark</span> &gt;= <span class="nu">70</span>) { <span class="va">$grade</span> = <span class="st">"A"</span>;  }
+    <span class="kw">else if</span> (<span class="va">$mark</span> &gt;= <span class="nu">50</span>) { <span class="va">$grade</span> = <span class="st">"B"</span>;  }
+    <span class="kw">else</span>                  { <span class="va">$grade</span> = <span class="st">"F"</span>;  }
+    echo <span class="va">$name</span> . <span class="st">" scored "</span> . <span class="va">$mark</span> . <span class="st">" and got "</span> . <span class="va">$grade</span> . <span class="st">"&lt;br&gt;"</span>;
+}
+echo <span class="st">"Total students: "</span> . <span class="fn">count</span>(<span class="va">$marks</span>);</pre>
+<h3 class="phase">One pass per key/value pair</h3>
+<div class="pass">
+<div class="tick">start</div>
+<div class="body">
+<pre>the array has <span class="nu">4</span> pairs:
+  <span class="st">"Rahim"</span> =&gt; <span class="nu">78</span>   <span class="st">"Karim"</span> =&gt; <span class="nu">92</span>
+  <span class="st">"Ayesha"</span> =&gt; <span class="nu">55</span>  <span class="st">"Nusrat"</span> =&gt; <span class="nu">43</span></pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span><code>foreach</code> hands over one <b>key</b> and one <b>value</b> at a time.</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">pair 1</div>
+<div class="body">
+<pre><span class="va">$name</span> = <span class="st">"Rahim"</span>, <span class="va">$mark</span> = <span class="nu">78</span>
+<span class="nu">78</span> &gt;= <span class="nu">90</span> ?  <span class="kw">no</span>
+<span class="nu">78</span> &gt;= <span class="nu">70</span> ?  <span class="hi">YES</span>  -&gt;  stop testing, <span class="va">$grade</span> = <span class="st">"A"</span></pre>
+<div class="says">
+<span class="emit">prints Rahim scored 78 and got A</span>
+<span class="state">$grade = "A"</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">pair 2</div>
+<div class="body">
+<pre><span class="va">$name</span> = <span class="st">"Karim"</span>, <span class="va">$mark</span> = <span class="nu">92</span>
+<span class="nu">92</span> &gt;= <span class="nu">90</span> ?  <span class="hi">YES</span>  -&gt;  stop testing, <span class="va">$grade</span> = <span class="st">"A+"</span></pre>
+<div class="says">
+<span class="emit">prints Karim scored 92 and got A+</span>
+<span class="state">$grade = "A+"</span>
+<span>92 is also &ge; 70, but that line is <b>never reached</b>.</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">pair 3</div>
+<div class="body">
+<pre><span class="va">$name</span> = <span class="st">"Ayesha"</span>, <span class="va">$mark</span> = <span class="nu">55</span>
+<span class="nu">55</span> &gt;= <span class="nu">90</span> ?  <span class="kw">no</span>
+<span class="nu">55</span> &gt;= <span class="nu">70</span> ?  <span class="kw">no</span>
+<span class="nu">55</span> &gt;= <span class="nu">50</span> ?  <span class="hi">YES</span>  -&gt;  <span class="va">$grade</span> = <span class="st">"B"</span></pre>
+<div class="says">
+<span class="emit">prints Ayesha scored 55 and got B</span>
+<span class="state">$grade = "B"</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">pair 4</div>
+<div class="body">
+<pre><span class="va">$name</span> = <span class="st">"Nusrat"</span>, <span class="va">$mark</span> = <span class="nu">43</span>
+<span class="nu">43</span> &gt;= <span class="nu">90</span> ?  <span class="kw">no</span>
+<span class="nu">43</span> &gt;= <span class="nu">70</span> ?  <span class="kw">no</span>
+<span class="nu">43</span> &gt;= <span class="nu">50</span> ?  <span class="kw">no</span>
+  -&gt;  the <span class="kw">else</span> runs, <span class="va">$grade</span> = <span class="st">"F"</span></pre>
+<div class="says">
+<span class="emit">prints Nusrat scored 43 and got F</span>
+<span class="state">$grade = "F"</span>
+</div></div></div>
+<div class="pass">
+<div class="tick stop">after</div>
+<div class="body">
+<pre>no pairs left  -&gt;  loop ends
+echo <span class="st">"Total students: "</span> . <span class="fn">count</span>(<span class="va">$marks</span>);</pre>
+<div class="says">
+<span class="emit">prints Total students: 4</span>
+<span class="state">count = 4</span>
+</div></div></div>
+<h3 class="phase">What the browser shows</h3>
+<div class="screen">Rahim scored 78 and got A
+Karim scored 92 and got A+
+Ayesha scored 55 and got B
+Nusrat scored 43 and got F
+Total students: 4</div>
+<p class="caption">Four pairs give four lines, plus the count on a fifth.</p>
+<div class="trap"><b>Karim is the trap.</b> 92 satisfies <code>&gt;= 90</code>, <code>&gt;= 70</code> and <code>&gt;= 50</code> &mdash; but an <code>if / else if</code> chain stops dead at the first one that is true. Write <code>A+</code>, not <code>A</code>.</div>
+<div class="note" style="margin-top:14px"><p><b>Why can this not use a <code>for</code> loop?</b></p><p>The keys are <code>"Rahim"</code>, <code>"Karim"</code> and so on &mdash; not <code>0, 1, 2, 3</code>. So <code>$marks[0]</code> does not exist and <code>$marks[$i]</code> would find nothing. An <b>associative</b> array has to be walked with <code>foreach</code>; a <code>for</code> loop with <code>count()</code> only works on an <b>indexed</b> array like Program 1's.</p></div>
+</article>
+<article class="prog" id="p-program-3">
+<div class="prog-head">
+<span class="pn">PROGRAM 3</span>
+<h2>Two-dimensional array and continue</h2>
+<span class="mk">5 MARKS</span></div>
+<p class="lead">An array of arrays, and the keyword that abandons one pass without leaving the loop.</p>
+<h3 class="phase">The code</h3>
+<pre><span class="va">$students</span> = [
+    [<span class="st">"name"</span> =&gt; <span class="st">"Rahim"</span>,  <span class="st">"cgpa"</span> =&gt; <span class="nu">3.50</span>],
+    [<span class="st">"name"</span> =&gt; <span class="st">"Karim"</span>,  <span class="st">"cgpa"</span> =&gt; <span class="nu">2.80</span>],
+    [<span class="st">"name"</span> =&gt; <span class="st">"Ayesha"</span>, <span class="st">"cgpa"</span> =&gt; <span class="nu">3.90</span>],
+    [<span class="st">"name"</span> =&gt; <span class="st">"Tanvir"</span>, <span class="st">"cgpa"</span> =&gt; <span class="nu">2.95</span>]
+];
+<span class="va">$count</span> = <span class="nu">0</span>;
+<span class="kw">for</span> (<span class="va">$i</span> = <span class="nu">0</span>; <span class="va">$i</span> &lt; <span class="fn">count</span>(<span class="va">$students</span>); <span class="va">$i</span>++) {
+    <span class="kw">if</span> (<span class="va">$students</span>[<span class="va">$i</span>][<span class="st">"cgpa"</span>] &lt; <span class="nu">3.0</span>) {
+        <span class="hi">continue</span>;
+    }
+    <span class="va">$count</span>++;
+    echo <span class="va">$count</span> . <span class="st">". "</span> . <span class="va">$students</span>[<span class="va">$i</span>][<span class="st">"name"</span>]
+       . <span class="st">" ("</span> . <span class="va">$students</span>[<span class="va">$i</span>][<span class="st">"cgpa"</span>] . <span class="st">")&lt;br&gt;"</span>;
+}
+echo <span class="st">"Eligible: "</span> . <span class="va">$count</span> . <span class="st">" out of "</span> . <span class="fn">count</span>(<span class="va">$students</span>);</pre>
+<h3 class="phase">Unrolled, one pass at a time</h3>
+<div class="pass">
+<div class="tick">start</div>
+<div class="body">
+<pre><span class="va">$students</span> has <span class="nu">4</span> rows
+<span class="va">$count</span> = <span class="nu">0</span>
+<span class="va">$i</span> = <span class="nu">0</span></pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$count = 0</span>
+<span>Each row is itself an array with two keys.</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$i = 0</div>
+<div class="body">
+<pre><span class="va">$students</span>[<span class="nu">0</span>][<span class="st">"cgpa"</span>] is <span class="nu">3.50</span>
+<span class="nu">3.50</span> &lt; <span class="nu">3.0</span> ?  <span class="kw">no</span>  -&gt;  do <span class="kw">NOT</span> skip
+<span class="va">$count</span>++  -&gt;  <span class="va">$count</span> is now <span class="nu">1</span></pre>
+<div class="says">
+<span class="emit">prints 1. Rahim (3.5)</span>
+<span class="state">$count = 1</span>
+<span>Printed as <code>3.5</code>, not <code>3.50</code>.</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$i = 1</div>
+<div class="body">
+<pre><span class="va">$students</span>[<span class="nu">1</span>][<span class="st">"cgpa"</span>] is <span class="nu">2.80</span>
+<span class="nu">2.80</span> &lt; <span class="nu">3.0</span> ?  <span class="hi">YES</span>  -&gt;  <span class="kw">continue</span>
+
+<span class="cm">jumps straight to $i++ - the rest</span>
+<span class="cm">of the body is skipped entirely</span></pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$count stays 1</span>
+<span><code>$count++</code> never runs for Karim.</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$i = 2</div>
+<div class="body">
+<pre><span class="va">$students</span>[<span class="nu">2</span>][<span class="st">"cgpa"</span>] is <span class="nu">3.90</span>
+<span class="nu">3.90</span> &lt; <span class="nu">3.0</span> ?  <span class="kw">no</span>
+<span class="va">$count</span>++  -&gt;  <span class="va">$count</span> is now <span class="nu">2</span></pre>
+<div class="says">
+<span class="emit">prints 2. Ayesha (3.9)</span>
+<span class="state">$count = 2</span>
+<span>Numbered <b>2</b>, not 3.</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$i = 3</div>
+<div class="body">
+<pre><span class="va">$students</span>[<span class="nu">3</span>][<span class="st">"cgpa"</span>] is <span class="nu">2.95</span>
+<span class="nu">2.95</span> &lt; <span class="nu">3.0</span> ?  <span class="hi">YES</span>  -&gt;  <span class="kw">continue</span></pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$count stays 2</span>
+</div></div></div>
+<div class="pass">
+<div class="tick stop">$i = 4</div>
+<div class="body">
+<pre><span class="nu">4</span> &lt; <span class="nu">4</span> ?  <span class="hi">NO</span>  -&gt;  the loop stops</pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$count = 2</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">after</div>
+<div class="body">
+<pre>echo <span class="st">"Eligible: "</span> . <span class="va">$count</span> . <span class="st">" out of "</span> . <span class="fn">count</span>(<span class="va">$students</span>);</pre>
+<div class="says">
+<span class="emit">prints Eligible: 2 out of 4</span>
+<span class="state">$count = 2, count = 4</span>
+</div></div></div>
+<h3 class="phase">What the browser shows</h3>
+<div class="screen">1. Rahim (3.5)
+2. Ayesha (3.9)
+Eligible: 2 out of 4</div>
+<p class="caption">Only two of the four students are printed, and they are numbered 1 and 2 &mdash; not 1 and 3.</p>
+<div class="trap"><b>Two traps in one program.</b> First: the code says <code>3.50</code> but the output is <code>3.5</code> &mdash; PHP stores it as the <i>number</i> 3.5, and a number carries no trailing zero. Second: <code>$count++</code> sits <i>after</i> the <code>continue</code>, so skipped students never consume a number.</div>
+<div class="note" style="margin-top:14px"><p><b>continue vs break</b></p><p><code>continue</code> abandons the <i>current pass</i> and jumps to the next one &mdash; the loop carries on.<br><code>break</code> leaves the <i>whole loop</i> immediately &mdash; nothing after it runs.</p><p>If <code>continue</code> here were <code>break</code>, the output would stop after Rahim and read <code>Eligible: 1 out of 4</code>.</p></div>
+</article>
+<article class="prog" id="p-program-4">
+<div class="prog-head">
+<span class="pn">PROGRAM 4</span>
+<h2>while (true), break and array_push</h2>
+<span class="mk">5 MARKS</span></div>
+<p class="lead">A loop with no condition of its own. The only way out is the <code>break</code> inside it.</p>
+<h3 class="phase">The code</h3>
+<pre><span class="va">$cart</span> = [];
+<span class="va">$i</span> = <span class="nu">1</span>;
+<span class="kw">while</span> (true) {
+    <span class="kw">if</span> (<span class="va">$i</span> &gt; <span class="nu">5</span>) { <span class="hi">break</span>; }
+    <span class="kw">if</span> (<span class="va">$i</span> % <span class="nu">2</span> != <span class="nu">0</span>) { <span class="fn">array_push</span>(<span class="va">$cart</span>, <span class="va">$i</span> * <span class="nu">10</span>); }
+    <span class="va">$i</span>++;
+}
+<span class="fn">print_r</span>(<span class="va">$cart</span>);
+echo <span class="st">"&lt;br&gt;Items: "</span> . <span class="fn">count</span>(<span class="va">$cart</span>);
+echo <span class="st">"&lt;br&gt;Last value of i: "</span> . <span class="va">$i</span>;</pre>
+<h3 class="phase">Unrolled, one pass at a time</h3>
+<div class="pass">
+<div class="tick">start</div>
+<div class="body">
+<pre><span class="va">$cart</span> = []   <span class="cm">empty array</span>
+<span class="va">$i</span>    = <span class="nu">1</span></pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$cart = [ ]</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$i = 1</div>
+<div class="body">
+<pre><span class="nu">1</span> &gt; <span class="nu">5</span> ?  <span class="kw">no</span>  -&gt;  no break
+<span class="nu">1</span> % <span class="nu">2</span> != <span class="nu">0</span> ?  <span class="hi">YES, odd</span>  -&gt;  push <span class="nu">1</span> * <span class="nu">10</span>
+<span class="va">$i</span>++</pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$cart = [10],  $i -&gt; 2</span>
+<span><code>array_push</code> prints nothing.</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$i = 2</div>
+<div class="body">
+<pre><span class="nu">2</span> &gt; <span class="nu">5</span> ?  <span class="kw">no</span>
+<span class="nu">2</span> % <span class="nu">2</span> != <span class="nu">0</span> ?  <span class="kw">no, even</span>  -&gt;  nothing pushed
+<span class="va">$i</span>++</pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$cart = [10],  $i -&gt; 3</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$i = 3</div>
+<div class="body">
+<pre><span class="nu">3</span> &gt; <span class="nu">5</span> ?  <span class="kw">no</span>
+<span class="nu">3</span> % <span class="nu">2</span> != <span class="nu">0</span> ?  <span class="hi">YES</span>  -&gt;  push <span class="nu">30</span>
+<span class="va">$i</span>++</pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$cart = [10, 30],  $i -&gt; 4</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$i = 4</div>
+<div class="body">
+<pre><span class="nu">4</span> &gt; <span class="nu">5</span> ?  <span class="kw">no</span>
+<span class="nu">4</span> % <span class="nu">2</span> != <span class="nu">0</span> ?  <span class="kw">no</span>
+<span class="va">$i</span>++</pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$cart = [10, 30],  $i -&gt; 5</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$i = 5</div>
+<div class="body">
+<pre><span class="nu">5</span> &gt; <span class="nu">5</span> ?  <span class="kw">no</span>
+<span class="nu">5</span> % <span class="nu">2</span> != <span class="nu">0</span> ?  <span class="hi">YES</span>  -&gt;  push <span class="nu">50</span>
+<span class="va">$i</span>++</pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$cart = [10, 30, 50],  $i -&gt; 6</span>
+</div></div></div>
+<div class="pass">
+<div class="tick stop">$i = 6</div>
+<div class="body">
+<pre><span class="nu">6</span> &gt; <span class="nu">5</span> ?  <span class="hi">YES</span>  -&gt;  <span class="kw">break</span>
+
+<span class="cm">leaves the loop at once - $i is never</span> 
+<span class="cm">increased again, so it stays 6       </span></pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$i = 6</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">after</div>
+<div class="body">
+<pre><span class="fn">print_r</span>(<span class="va">$cart</span>);</pre>
+<div class="says">
+<span class="emit">prints the array, over 5 lines</span>
+<span class="state">count = 3</span>
+<span>then the two <code>echo</code> lines.</span>
+</div></div></div>
+<h3 class="phase">What the browser shows</h3>
+<div class="screen">Array
+(
+    [0] =&gt; 10
+    [1] =&gt; 30
+    [2] =&gt; 50
+)
+
+Items: 3
+Last value of i: 6</div>
+<p class="caption"><code>print_r</code> uses a fixed layout: the word <code>Array</code>, a bracket alone on the next line, then <b>four spaces</b> before each <code>[key] =&gt; value</code>, then a closing bracket. Note the <b>blank line</b> after <code>)</code> &mdash; explained below.</p>
+<div class="trap"><b>Three traps here.</b> (1) The last value of <code>$i</code> is <b>6</b>, not 5 &mdash; it was raised to 6 at the end of the previous pass, and the <code>break</code> then fired on the way in. (2) <code>print_r</code> <i>already</i> ends with a newline, so the <code>&lt;br&gt;</code> in <code>echo "&lt;br&gt;Items: "</code> adds a <b>second</b> one &mdash; giving the blank line after <code>)</code>. (3) The four-space indent inside the brackets is part of the required answer.</div>
+<div class="note" style="margin-top:14px"><p><b>What if <code>$i++</code> were deleted?</b></p><p><code>$i</code> would stay 1 for ever, <code>$i &gt; 5</code> would never become true, the <code>break</code> would never run, and the program would loop for ever &mdash; an <b>infinite loop</b>. In a <code>while (true)</code> the exit is entirely your responsibility.</p></div>
+</article>
+<article class="prog" id="p-program-5">
+<div class="prog-head">
+<span class="pn">PROGRAM 5</span>
+<h2>isset, empty and truthiness</h2>
+<span class="mk">6 MARKS</span></div>
+<p class="lead">The favourite trick question of the whole syllabus. Learn the five rows below and it is free marks.</p>
+<h3 class="phase">The code</h3>
+<pre><span class="va">$a</span> = <span class="nu">0</span>;        <span class="va">$b</span> = <span class="st">"0"</span>;     <span class="va">$c</span> = <span class="st">""</span>;
+<span class="va">$d</span> = null;     <span class="va">$e</span> = -<span class="nu">5</span>;
+<span class="va">$vars</span> = <span class="fn">array</span>(<span class="st">"a"</span>=&gt;<span class="va">$a</span>, <span class="st">"b"</span>=&gt;<span class="va">$b</span>, <span class="st">"c"</span>=&gt;<span class="va">$c</span>, <span class="st">"d"</span>=&gt;<span class="va">$d</span>, <span class="st">"e"</span>=&gt;<span class="va">$e</span>);
+<span class="kw">foreach</span> (<span class="va">$vars</span> <span class="kw">as</span> <span class="va">$key</span> =&gt; <span class="va">$value</span>) {
+    echo <span class="va">$key</span> . <span class="st">" -&gt; "</span>;
+    <span class="kw">if</span> (<span class="fn">isset</span>(<span class="va">$value</span>)) { echo <span class="st">"isset:YES "</span>; } <span class="kw">else</span> { echo <span class="st">"isset:NO "</span>; }
+    <span class="kw">if</span> (<span class="fn">empty</span>(<span class="va">$value</span>)) { echo <span class="st">"empty:YES "</span>; } <span class="kw">else</span> { echo <span class="st">"empty:NO "</span>; }
+    <span class="kw">if</span> (<span class="va">$value</span>)        { echo <span class="st">"truthy:YES"</span>; } <span class="kw">else</span> { echo <span class="st">"truthy:NO"</span>; }
+    echo <span class="st">"&lt;br&gt;"</span>;
+}</pre>
+<h3 class="phase">One pass per variable, three questions each</h3>
+<div class="pass">
+<div class="tick">$a = 0</div>
+<div class="body">
+<pre><span class="fn">isset</span>(<span class="nu">0</span>)  -&gt;  <span class="kw">YES</span>   <span class="cm">it exists, and is not null</span>
+<span class="fn">empty</span>(<span class="nu">0</span>)  -&gt;  <span class="hi">YES</span>   <span class="cm">0 counts as empty</span>
+if (<span class="nu">0</span>)    -&gt;  <span class="kw">NO</span>    <span class="cm">0 is the only false number</span></pre>
+<div class="says">
+<span class="emit">prints a -&gt; isset:YES empty:YES truthy:NO</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$b = "0"</div>
+<div class="body">
+<pre><span class="fn">isset</span>(<span class="st">"0"</span>)  -&gt;  <span class="kw">YES</span>
+<span class="fn">empty</span>(<span class="st">"0"</span>)  -&gt;  <span class="hi">YES</span>   <span class="cm">!! the STRING "0" is also empty</span>
+if (<span class="st">"0"</span>)    -&gt;  <span class="kw">NO</span></pre>
+<div class="says">
+<span class="emit">prints b -&gt; isset:YES empty:YES truthy:NO</span>
+<span>A one-character string, and still empty.</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$c = ""</div>
+<div class="body">
+<pre><span class="fn">isset</span>(<span class="st">""</span>)  -&gt;  <span class="kw">YES</span>   <span class="cm">an empty string still exists</span>
+<span class="fn">empty</span>(<span class="st">""</span>)  -&gt;  <span class="kw">YES</span>
+if (<span class="st">""</span>)    -&gt;  <span class="kw">NO</span></pre>
+<div class="says">
+<span class="emit">prints c -&gt; isset:YES empty:YES truthy:NO</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$d = null</div>
+<div class="body">
+<pre><span class="fn">isset</span>(null)  -&gt;  <span class="hi">NO</span>   <span class="cm">null is the ONLY thing that fails isset</span>
+<span class="fn">empty</span>(null)  -&gt;  <span class="kw">YES</span>
+if (null)    -&gt;  <span class="kw">NO</span></pre>
+<div class="says">
+<span class="emit">prints d -&gt; isset:NO empty:YES truthy:NO</span>
+<span>The only <code>isset:NO</code> in the table.</span>
+</div></div></div>
+<div class="pass">
+<div class="tick stop">$e = -5</div>
+<div class="body">
+<pre><span class="fn">isset</span>(-<span class="nu">5</span>)  -&gt;  <span class="kw">YES</span>
+<span class="fn">empty</span>(-<span class="nu">5</span>)  -&gt;  <span class="hi">NO</span>    <span class="cm">-5 is not zero, so not empty</span>
+if (-<span class="nu">5</span>)    -&gt;  <span class="hi">YES</span>   <span class="cm">any non-zero number is true</span></pre>
+<div class="says">
+<span class="emit">prints e -&gt; isset:YES empty:NO truthy:YES</span>
+<span>The only row that is truthy.</span>
+</div></div></div>
+<h3 class="phase">What the browser shows</h3>
+<div class="screen">a -&gt; isset:YES empty:YES truthy:NO
+b -&gt; isset:YES empty:YES truthy:NO
+c -&gt; isset:YES empty:YES truthy:NO
+d -&gt; isset:NO empty:YES truthy:NO
+e -&gt; isset:YES empty:NO truthy:YES</div>
+<p class="caption">Notice the shape: four rows are almost identical, and the two that break the pattern are <code>d</code> and <code>e</code>.</p>
+<div class="trap"><b>The two traps.</b> <code>"0"</code> is a string with a character in it, and it is <i>still</i> empty &mdash; PHP treats it as the number zero. And <code>-5</code> is <i>true</i>, because truthiness asks <b>is it zero or not</b>, never whether it is positive.</div>
+<div class="note" style="margin-top:14px"><p><b>One-sentence definitions to memorise</b></p><p><code>isset()</code> &mdash; does this variable exist and hold something other than <code>null</code>?<br><code>empty()</code> &mdash; is this value one of <code>0</code>, <code>"0"</code>, <code>""</code>, <code>null</code>, <code>false</code>, or an empty array?</p><p>They are not opposites. Every value except <code>null</code> is <code>isset</code>, while five different values are <code>empty</code>. That overlap is exactly what the question is testing.</p></div>
+</article>
+<article class="prog" id="p-program-6">
+<div class="prog-head">
+<span class="pn">PROGRAM 6</span>
+<h2>Strings and arrays together</h2>
+<span class="mk">4 MARKS</span></div>
+<p class="lead">Building one string across a loop, with a separator that must not appear after the last item.</p>
+<h3 class="phase">The code</h3>
+<pre><span class="va">$interests</span> = <span class="st">"Programming,Robotics,Debate"</span>;
+<span class="va">$list</span> = <span class="hi">explode</span>(<span class="st">","</span>, <span class="va">$interests</span>);
+<span class="va">$out</span> = <span class="st">""</span>;
+<span class="kw">for</span> (<span class="va">$i</span> = <span class="nu">0</span>; <span class="va">$i</span> &lt; <span class="fn">count</span>(<span class="va">$list</span>); <span class="va">$i</span>++) {
+    <span class="kw">if</span> (<span class="va">$i</span> % <span class="nu">2</span> == <span class="nu">0</span>) { <span class="va">$out</span> = <span class="va">$out</span> . <span class="fn">strtoupper</span>(<span class="va">$list</span>[<span class="va">$i</span>]); }
+    <span class="kw">else</span>             { <span class="va">$out</span> = <span class="va">$out</span> . <span class="fn">strtolower</span>(<span class="va">$list</span>[<span class="va">$i</span>]); }
+    <span class="kw">if</span> (<span class="va">$i</span> &lt; <span class="fn">count</span>(<span class="va">$list</span>) - <span class="nu">1</span>) { <span class="va">$out</span> = <span class="va">$out</span> . <span class="st">" | "</span>; }
+}
+echo <span class="va">$out</span> . <span class="st">"&lt;br&gt;"</span>;
+echo <span class="fn">count</span>(<span class="va">$list</span>) . <span class="st">" items&lt;br&gt;"</span>;
+echo <span class="fn">in_array</span>(<span class="st">"Debate"</span>, <span class="va">$list</span>) ? <span class="st">"Debate found"</span> : <span class="st">"Debate missing"</span>;</pre>
+<h3 class="phase">Unrolled, one pass at a time</h3>
+<div class="pass">
+<div class="tick">start</div>
+<div class="body">
+<pre><span class="fn">explode</span>(<span class="st">","</span>, <span class="st">"Programming,Robotics,Debate"</span>)
+  -&gt;  [<span class="st">"Programming"</span>, <span class="st">"Robotics"</span>, <span class="st">"Debate"</span>]
+<span class="va">$out</span> = <span class="st">""</span>   <span class="cm">count is 3</span></pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$out = ""</span>
+<span>Nothing is printed inside the loop at all.</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$i = 0</div>
+<div class="body">
+<pre><span class="nu">0</span> % <span class="nu">2</span> == <span class="nu">0</span> ?  <span class="kw">yes</span>  -&gt;  <span class="fn">strtoupper</span>(<span class="st">"Programming"</span>)
+<span class="nu">0</span> &lt; <span class="nu">2</span> ?  <span class="kw">yes</span>  -&gt;  add the separator</pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$out = "PROGRAMMING | "</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$i = 1</div>
+<div class="body">
+<pre><span class="nu">1</span> % <span class="nu">2</span> == <span class="nu">0</span> ?  <span class="kw">no</span>  -&gt;  <span class="fn">strtolower</span>(<span class="st">"Robotics"</span>)
+<span class="nu">1</span> &lt; <span class="nu">2</span> ?  <span class="kw">yes</span>  -&gt;  add the separator</pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$out = "PROGRAMMING | robotics | "</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">$i = 2</div>
+<div class="body">
+<pre><span class="nu">2</span> % <span class="nu">2</span> == <span class="nu">0</span> ?  <span class="kw">yes</span>  -&gt;  <span class="fn">strtoupper</span>(<span class="st">"Debate"</span>)
+<span class="nu">2</span> &lt; <span class="nu">2</span> ?  <span class="hi">NO</span>  -&gt;  no separator this time</pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$out = "PROGRAMMING | robotics | DEBATE"</span>
+<span>This is what stops a trailing <code> | </code>.</span>
+</div></div></div>
+<div class="pass">
+<div class="tick stop">$i = 3</div>
+<div class="body">
+<pre><span class="nu">3</span> &lt; <span class="nu">3</span> ?  <span class="hi">NO</span>  -&gt;  the loop stops</pre>
+<div class="says">
+<span class="emit none">prints nothing</span>
+<span class="state">$out is complete</span>
+</div></div></div>
+<div class="pass">
+<div class="tick">after</div>
+<div class="body">
+<pre>echo <span class="va">$out</span> . <span class="st">"&lt;br&gt;"</span>;
+echo <span class="fn">count</span>(<span class="va">$list</span>) . <span class="st">" items&lt;br&gt;"</span>;
+echo <span class="fn">in_array</span>(<span class="st">"Debate"</span>, <span class="va">$list</span>) ? ... ;</pre>
+<div class="says">
+<span class="emit">prints all three lines at once</span>
+<span><code>in_array</code> returns true, so the <code>?:</code> picks the first option.</span>
+</div></div></div>
+<h3 class="phase">What the browser shows</h3>
+<div class="screen">PROGRAMMING | robotics | DEBATE
+3 items
+Debate found</div>
+<p class="caption">The loop itself prints nothing &mdash; it only builds <code>$out</code>. Everything appears in the three <code>echo</code> lines after it.</p>
+<div class="note" style="margin-top:14px"><p><b>explode and implode are opposites</b></p><p><code>explode(",", $string)</code> cuts a string into an <b>array</b> at every comma.<br><code>implode(",", $array)</code> joins an array back into one <b>string</b>.</p><p>That is exactly the pair used in Question 6 to store tick-box interests in a single column and read them back out.</p><p><code>(condition) ? A : B</code> is the ternary operator: a compact <code>if / else</code> that produces a value.</p></div>
+</article>
+</div></section>
+<section class="pane" id="pane-th" role="tabpanel" hidden><div class="wrap">
+<header class="hero">
+<p class="eyebrow">Theory &middot; 10 questions</p>
+<h1>The Ten They Always Ask</h1>
+<p>Each answer opens with the single sentence to write first, then the detail to fill the rest of the marks. If you are short of time, read only the boxed lines.</p>
+<div class="tags"><span>Session vs Cookie</span><span>GET vs POST</span><span>MVC</span><span>Validation</span><span>Superglobals</span><span class="mk">SHORT ANSWERS</span></div></header>
+<article class="qa" id="t1">
+<div class="qa-q"><span class="qa-n">01</span>
+<h2>Session vs Cookie — explain the difference and say which one a login must use.</h2></div>
+<div class="oneline"><b>Answer in one line</b>A session is stored on the <b>server</b>; a cookie is stored in the <b>browser</b>. Login must be a session, because the user can edit a cookie.</div>
+<div class="qa-body"><p><b>Session</b> — <code>session_start()</code> opens it, values live in <code>$_SESSION</code> on the server, and the browser only receives a session <b>id</b>. In the lab, <code>$_SESSION['username'] = $username;</code> in <code>login-handler.php</code> <i>is</i> the whole login, and every protected page then asks <code>isset($_SESSION['username'])</code>.</p><p><b>Cookie</b> — <code>setcookie()</code> writes it into the browser and it returns on every later request in <code>$_COOKIE</code>. The theme switcher is the lab example: <code>setcookie('theme','dark', time()+60*60*24*7)</code>.</p><p><b>The answer they want:</b> a cookie lives on the user's own machine, so they can open it and change it. Nobody may edit their way into being logged in — so login state belongs in a session. A theme is harmless and should survive until tomorrow, so a cookie is right for it.</p><p>Logging out uses <code>session_unset()</code> then <code>session_destroy()</code>. Deleting a cookie means setting it again with an expiry <b>in the past</b>: <code>setcookie('theme','',time()-3600)</code>.</p></div>
+<div class="cmp">
+<div class="cmp-h"><span>Session</span><span>Cookie</span></div>
+<div class="cmp-r"><div class="lbl">Stored</div>
+<div class="vals"><span data-h="Session">On the server</span><span data-h="Cookie">In the browser</span></div></div>
+<div class="cmp-r"><div class="lbl">Created with</div>
+<div class="vals"><span data-h="Session">session_start()</span><span data-h="Cookie">setcookie()</span></div></div>
+<div class="cmp-r"><div class="lbl">Read with</div>
+<div class="vals"><span data-h="Session">$_SESSION</span><span data-h="Cookie">$_COOKIE</span></div></div>
+<div class="cmp-r"><div class="lbl">Lifetime</div>
+<div class="vals"><span data-h="Session">Until browser closes / destroy</span><span data-h="Cookie">Until the expiry you set</span></div></div>
+<div class="cmp-r"><div class="lbl">Deleted with</div>
+<div class="vals"><span data-h="Session">session_destroy()</span><span data-h="Cookie">An expiry in the past</span></div></div>
+<div class="cmp-r"><div class="lbl">Size limit</div>
+<div class="vals"><span data-h="Session">Large (server memory)</span><span data-h="Cookie">About 4 KB</span></div></div>
+<div class="cmp-r"><div class="lbl">User can edit</div>
+<div class="vals"><span data-h="Session">No</span><span data-h="Cookie">Yes</span></div></div>
+<div class="cmp-r"><div class="lbl">Use it for</div>
+<div class="vals"><span data-h="Session">Login state, roles</span><span data-h="Cookie">Theme, remember-me</span></div></div>
+</div>
+</article>
+<article class="qa" id="t2">
+<div class="qa-q"><span class="qa-n">02</span>
+<h2>GET vs POST — differences, and which one the labs use where.</h2></div>
+<div class="oneline"><b>Answer in one line</b>GET puts data in the URL and is for reading; POST puts it in the request body and is for changing things.</div>
+<div class="qa-body"><p><b>GET</b> — values sit after the <code>?</code> in the address, so they are visible, bookmarkable and kept in history. Limited to roughly 2000 characters. The MVC router uses it for navigation: <code>index.php?target=profile</code>, read with <code>$_GET['target']</code>.</p><p><b>POST</b> — values travel in the body, hidden from the address bar, no practical size limit, and it is the <b>only</b> method that can carry a file upload. Every form in the labs that changes something — login, register, insert, upload — is a POST.</p><p>This is exactly why every controller opens with</p><pre>if ($_SERVER['REQUEST_METHOD'] == 'POST') { ... }</pre><p>— so that somebody merely typing the handler's address (a GET) cannot trigger an insert.</p></div>
+<div class="cmp">
+<div class="cmp-h"><span>GET</span><span>POST</span></div>
+<div class="cmp-r"><div class="lbl">Data goes in</div>
+<div class="vals"><span data-h="GET">The URL, after ?</span><span data-h="POST">The request body</span></div></div>
+<div class="cmp-r"><div class="lbl">Visible in address bar</div>
+<div class="vals"><span data-h="GET">Yes</span><span data-h="POST">No</span></div></div>
+<div class="cmp-r"><div class="lbl">Bookmarkable</div>
+<div class="vals"><span data-h="GET">Yes</span><span data-h="POST">No</span></div></div>
+<div class="cmp-r"><div class="lbl">Size limit</div>
+<div class="vals"><span data-h="GET">About 2000 characters</span><span data-h="POST">Practically none</span></div></div>
+<div class="cmp-r"><div class="lbl">Can send files</div>
+<div class="vals"><span data-h="GET">No</span><span data-h="POST">Yes, with enctype</span></div></div>
+<div class="cmp-r"><div class="lbl">Read with</div>
+<div class="vals"><span data-h="GET">$_GET</span><span data-h="POST">$_POST</span></div></div>
+<div class="cmp-r"><div class="lbl">Used in the labs for</div>
+<div class="vals"><span data-h="GET">?target= routing, the API</span><span data-h="POST">login, insert, upload</span></div></div>
+</div>
+</article>
+<article class="qa" id="t3">
+<div class="qa-q"><span class="qa-n">03</span>
+<h2>What is MVC? State exactly what belongs in each layer.</h2></div>
+<div class="oneline"><b>Answer in one line</b>Model = all the SQL, View = the HTML, Controller = validate then redirect. <code>index.php</code> is the router.</div>
+<div class="qa-body"><p><b>Model</b> (<code>model/User.php</code>) — every SQL statement in the application. It returns plain arrays and prints no HTML.</p><p><b>View</b> (<code>view/home.php</code>) — the HTML. It may loop over data and echo it, but it must never contain a query.</p><p><b>Controller</b> (<code>controller/login-handler.php</code>) — reads <code>$_POST</code>, validates, calls the model, then redirects. It prints nothing:</p><pre>header("Location: ../");
+exit();</pre><p><b>Router</b> — <code>index.php</code> calls <code>session_start()</code> once, then picks the view from the session and <code>$_GET['target']</code>. Everything enters through this one file.</p><p><b>Why bother:</b> the login query is needed by several pages; in MVC it is written once. If the database changes you edit one file instead of twenty, and the layout and the logic can be worked on separately.</p><p>A separate <code>DBConnection</code> class holds the host, user, password and database name, so those four values appear in exactly one place.</p></div>
+</article>
+<article class="qa" id="t4">
+<div class="qa-q"><span class="qa-n">04</span>
+<h2>Why must validation be done on the client AND the server?</h2></div>
+<div class="oneline"><b>Answer in one line</b>The JavaScript check is a convenience and can be switched off; the PHP check is the only one that cannot be bypassed.</div>
+<div class="qa-body"><p><b>Client side</b> — a JavaScript <code>validateForm()</code> wired up as <code>onsubmit="return validateForm()"</code>. Returning <code>false</code> stops the form submitting. It is instant and needs no page reload. (Leave out the word <code>return</code> and the browser ignores your answer entirely.)</p><p><b>Server side</b> — the same rules again in the controller, collected into an <code>$errors</code> array, handed back through the session and printed beside each field.</p><p><b>The answer they want:</b> JavaScript runs on the user's own machine. They can disable it, or send the POST straight from a tool without ever loading your form — then <code>validateForm()</code> never runs. So the server check is the real one.</p><p>Some rules can <b>only</b> be checked on the server: “is this username already taken?” needs a database query, and the browser has no way to know.</p><p>Useful PHP helpers: <code>empty()</code>, <code>strlen()</code>, <code>filter_var($e, FILTER_VALIDATE_EMAIL)</code>, <code>preg_match()</code>, <code>is_numeric()</code>.</p></div>
+</article>
+<article class="qa" id="t5">
+<div class="qa-q"><span class="qa-n">05</span>
+<h2>What is a superglobal? Name them and say what each holds.</h2></div>
+<div class="oneline"><b>Answer in one line</b>A built-in array PHP fills in automatically, reachable in every file and inside every function without declaring <code>global</code>.</div>
+<div class="qa-body"><p><code>$_GET</code> — values from the URL after the <code>?</code>.<br><code>$_POST</code> — values from a form with <code>method="post"</code>.<br><code>$_REQUEST</code> — <code>$_GET</code> and <code>$_POST</code> together.<br><code>$_SESSION</code> — server-side data; needs <code>session_start()</code> first.<br><code>$_COOKIE</code> — cookies the browser sent back.<br><code>$_FILES</code> — uploaded files; <b>empty</b> unless the form has <code>enctype="multipart/form-data"</code>.<br><code>$_SERVER</code> — information about the request and server.<br><code>$GLOBALS</code> — every global variable.</p><p>The one used constantly is <code>$_SERVER['REQUEST_METHOD']</code>, which every controller checks. Others worth naming: <code>PHP_SELF</code>, <code>SCRIPT_NAME</code>, <code>HTTP_HOST</code>, <code>QUERY_STRING</code>, <code>HTTP_USER_AGENT</code>.</p><p><b>Watch out:</b> an unticked checkbox and an unchosen radio group send <i>nothing at all</i>, so they must be read with <code>isset($_POST['terms'])</code> and never directly. Checkboxes named <code>interests[]</code> arrive as an <b>array</b>.</p></div>
+</article>
+<article class="qa" id="t6">
+<div class="qa-q"><span class="qa-n">06</span>
+<h2>What is SQL injection, and how does a prepared statement stop it?</h2></div>
+<div class="oneline"><b>Answer in one line</b>Injection is when typed input becomes part of the SQL. A prepared statement sends the query first and the values separately, so input can only ever be data.</div>
+<div class="qa-body"><p>A query built by joining strings:</p><pre>$sql = "SELECT * FROM users WHERE username = '" . $username . "'";</pre><p>If somebody types <code>' OR '1'='1</code> the query becomes</p><pre>SELECT * FROM users WHERE username = '' OR '1'='1'</pre><p>— always true, so every row matches and they are logged in with no password.</p><p><b>A prepared statement</b> sends the query text to MySQL first, with <code>?</code> where the values will go. The values follow afterwards. MySQL has already decided what the query looks like, so a value cannot change its shape.</p><pre>$sql  = "INSERT INTO users (username, email, password)
+         VALUES (?, ?, ?)";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param('sss', $username, $email, $password);
+$stmt->execute();
+$new_id = $conn->insert_id;</pre><p>The type string carries <b>one letter per question mark, in order</b>: <code>s</code> string, <code>i</code> integer, <code>d</code> decimal, <code>b</code> blob. Three placeholders → <code>'sss'</code>. A wrong count gives <i>Number of variables doesn't match parameters</i>.</p></div>
+</article>
+<article class="qa" id="t7">
+<div class="qa-q"><span class="qa-n">07</span>
+<h2>What is AJAX? Explain synchronous vs asynchronous and the four steps.</h2></div>
+<div class="oneline"><b>Answer in one line</b>AJAX lets the page fetch data in the background and update part of itself without reloading.</div>
+<div class="qa-body"><p><b>Synchronous</b> — the form submits, the browser waits, the whole page is replaced, and the user can do nothing meanwhile.</p><p><b>Asynchronous</b> — the request goes in the background; the user keeps using the page, and when the reply arrives JavaScript redraws only the part that changed.</p><pre>var xhr = new XMLHttpRequest();                    (( 1. create ))
+xhr.open("GET", "api/get-users.php", true);          (( 2. open, true = async ))
+xhr.onreadystatechange = function () {              (( 3. on reply ))
+    if (xhr.readyState == 4 && xhr.status == 200) {
+        var data = JSON.parse(xhr.responseText);
+    }
+};
+xhr.send();                                         (( 4. send ))</pre><p><code>readyState == 4</code> means the reply has <b>fully arrived</b>; <code>status == 200</code> means the server reported <b>success</b>. Both must be checked — a 404 page also arrives completely.</p><p>The third argument of <code>open()</code> is <code>true</code> for asynchronous; <code>false</code> freezes the page until the server answers.</p><p>For a hand-written POST you must also send</p><pre>xhr.setRequestHeader("Content-type",
+    "application/x-www-form-urlencoded");
+xhr.send("username=" + username);</pre><p>or <code>$_POST</code> arrives empty. Forgetting <code>xhr.send()</code> means nothing happens at all.</p></div>
+</article>
+<article class="qa" id="t8">
+<div class="qa-q"><span class="qa-n">08</span>
+<h2>Name the four JSON conversion functions and say when each is used.</h2></div>
+<div class="oneline"><b>Answer in one line</b>PHP: <code>json_encode</code> / <code>json_decode</code>. JavaScript: <code>JSON.stringify</code> / <code>JSON.parse</code>.</div>
+<div class="qa-body"><p>Learn them as two pairs and they cannot be mixed up:</p><pre>PHP
+  json_encode($array)       array  -> JSON text
+  json_decode($text, true)  JSON   -> associative array
+
+JavaScript
+  JSON.stringify(obj)       object -> JSON text
+  JSON.parse(text)          JSON   -> object</pre><p><b>Where each appears in the lab.</b> The API endpoint builds an array from the model and prints it:</p><pre>header('Content-Type: application/json');
+echo json_encode($usersList);</pre><p>and the page turns that text back into an array:</p><pre>var data = JSON.parse(xhr.responseText);</pre><p>The <code>true</code> in <code>json_decode($text, true)</code> asks for an <b>associative array</b> instead of an object.</p><p>When PHP is the one <i>receiving</i> a JSON body, read the raw input:</p><pre>$post_data = file_get_contents("php://input");
+$data = json_decode($post_data, true);</pre><p><b>An API is not a controller.</b> A controller redirects and prints nothing; an API prints data and never redirects. Put a <code>header("Location: ...")</code> in an endpoint and the JavaScript receives HTML, so <code>JSON.parse</code> throws.</p></div>
+</article>
+<article class="qa" id="t9">
+<div class="qa-q"><span class="qa-n">09</span>
+<h2>Explain the two ways to store an uploaded file, and what enctype does.</h2></div>
+<div class="oneline"><b>Answer in one line</b>Either move the file into a folder and store its path, or read its bytes and store them in the database. Without enctype, <code>$_FILES</code> is empty.</div>
+<div class="qa-body"><p><b>Method 1 — save to a folder.</b> The path goes in a <code>VARCHAR</code> column.</p><pre>$tmp  = $_FILES['profile_pic']['tmp_name'];
+$ext  = pathinfo($_FILES['profile_pic']['name'], PATHINFO_EXTENSION);
+$name = time() . '_' . $_SESSION['username'] . '.' . $ext;
+move_uploaded_file($tmp, '../images/' . $name);</pre><p><b>Method 2 — store in the database.</b> The bytes go in a <code>LONGBLOB</code>, together with the MIME type.</p><pre>$bin  = file_get_contents($_FILES['profile_pic']['tmp_name']);
+$type = $_FILES['profile_pic']['type'];
+(( UPDATE users SET profile_pic = ?, profile_pic_type = ? ... ))</pre><p>Because it is not a file on disk it has no URL, so it is printed as a <b>base64 data URI</b>:</p><pre>echo '&lt;img src="data:' . $type . ';base64,'
+   . base64_encode($bin) . '"&gt;';</pre><p><b>Three things that must be said:</b></p><p>1. <code>enctype="multipart/form-data"</code> on the form. Without it the browser sends only the file's <i>name</i> as ordinary text and <code>$_FILES</code> is empty — with no error shown anywhere.<br>2. Check the type against a whitelist: <code>in_array($_FILES['f']['type'], ['image/jpeg','image/png'])</code>.<br>3. Rename with <code>time()</code> so two uploads of <code>photo.jpg</code> cannot overwrite one another.</p><p>An uploaded file sits in a temporary folder and PHP <b>deletes it when the script ends</b> — <code>move_uploaded_file()</code> is what rescues it.</p></div>
+<div class="cmp">
+<div class="cmp-h"><span>Save to folder</span><span>Save in database</span></div>
+<div class="cmp-r"><div class="lbl">Function</div>
+<div class="vals"><span data-h="Save to folder">move_uploaded_file()</span><span data-h="Save in database">file_get_contents()</span></div></div>
+<div class="cmp-r"><div class="lbl">Column</div>
+<div class="vals"><span data-h="Save to folder">VARCHAR (the path)</span><span data-h="Save in database">LONGBLOB (the bytes)</span></div></div>
+<div class="cmp-r"><div class="lbl">Shown with</div>
+<div class="vals"><span data-h="Save to folder">&lt;img src="images/x.jpg"&gt;</span><span data-h="Save in database">base64 data URI</span></div></div>
+<div class="cmp-r"><div class="lbl">Database size</div>
+<div class="vals"><span data-h="Save to folder">Stays small</span><span data-h="Save in database">Grows fast</span></div></div>
+<div class="cmp-r"><div class="lbl">Speed</div>
+<div class="vals"><span data-h="Save to folder">Faster</span><span data-h="Save in database">Slower</span></div></div>
+<div class="cmp-r"><div class="lbl">Also store</div>
+<div class="vals"><span data-h="Save to folder">—</span><span data-h="Save in database">The MIME type</span></div></div>
+</div>
+</article>
+<article class="qa" id="t10">
+<div class="qa-q"><span class="qa-n">10</span>
+<h2>File handling: the three fopen modes, and reading and writing XML.</h2></div>
+<div class="oneline"><b>Answer in one line</b><code>'r'</code> reads, <code>'w'</code> erases then writes, <code>'a'</code> appends. Always <code>fclose()</code> what you <code>fopen()</code>.</div>
+<div class="qa-body"><pre>'r'  read only, from the beginning; fails if the file is missing
+'w'  ERASES the file first, then writes; creates it if missing
+'a'  APPEND - keeps what is there and adds at the end</pre><p>The pattern is always three steps — open, use, close:</p><pre>$f = fopen("content.txt", 'a') or die("Unable to open file");
+fwrite($f, "\nEEE");
+fclose($f);</pre><p>Reading the whole file needs the length, which is what <code>filesize()</code> gives:</p><pre>$f = fopen("content.txt", 'r');
+echo fread($f, filesize("content.txt"));
+fclose($f);
+
+(( or in one line ))
+echo readfile("content.txt");</pre><p><b>The classic mistake:</b> opening a log with <code>'w'</code> instead of <code>'a'</code>. It looks like it works, but every write wipes the file and leaves a single line.</p><p><b>XML — reading</b> gives you an object you can walk:</p><pre>$content = simplexml_load_file("data.xml")
+           or die("Unable to open XML file");
+echo $content->to;
+echo $content->body->main;   (( nested elements ))</pre><p><b>XML — writing</b> builds from a root element and saves the text:</p><pre>$list  = new SimpleXMLElement('&lt;?xml version="1.0"?&gt;&lt;booklist/&gt;');
+$book  = $list->addChild('book');
+$book->addChild('author', 'J.K Rowling');
+$book->addChild('title', 'Harry Potter');
+file_put_contents('booklist.xml', $list->asXML());</pre><p><code>asXML()</code> turns the object into XML text; <code>simplexml_load_file()</code> does the reverse.</p></div>
+<div class="cmp">
+<div class="cmp-h"><span>'w' write</span><span>'a' append</span></div>
+<div class="cmp-r"><div class="lbl">Existing content</div>
+<div class="vals"><span data-h="'w' write">Erased</span><span data-h="'a' append">Kept</span></div></div>
+<div class="cmp-r"><div class="lbl">Writes at</div>
+<div class="vals"><span data-h="'w' write">The beginning</span><span data-h="'a' append">The end</span></div></div>
+<div class="cmp-r"><div class="lbl">Use for</div>
+<div class="vals"><span data-h="'w' write">An export that replaces</span><span data-h="'a' append">A log that grows</span></div></div>
+</div>
+</article>
+</div></section>
+</main>
+<button class="totop" id="totop" type="button" aria-label="Back to top">↑</button>
+<script>
+(function(){
+  var K="wtrev";
+  var root=document.documentElement;
+  var tb=document.getElementById("tbtn");
+  try{var st=localStorage.getItem(K+"-theme"); if(st) root.setAttribute("data-theme",st);}catch(e){}
+  function cur(){
+    var d=root.getAttribute("data-theme");
+    if(!d) d=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";
+    return d;
+  }
+  function paint(){ tb.textContent = cur()==="dark" ? "☀" : "☾"; }
+  paint();
+  tb.addEventListener("click",function(){
+    var n=cur()==="dark"?"light":"dark";
+    root.setAttribute("data-theme",n);
+    try{localStorage.setItem(K+"-theme",n);}catch(e){}
+    paint();
+  });
+
+  var panes={q6:document.getElementById("pane-q6"),q7:document.getElementById("pane-q7"),
+             th:document.getElementById("pane-th")};
+  var btns=document.querySelectorAll(".seg button");
+  var jumps={q6:document.getElementById("jump-q6"),q7:document.getElementById("jump-q7"),
+             th:document.getElementById("jump-th")};
+  function show(which,remember){
+    for(var k in panes){
+      panes[k].hidden = (k!==which);
+      jumps[k].hidden = (k!==which);
+    }
+    btns.forEach(function(b){
+      b.setAttribute("aria-selected", b.dataset.pane===which ? "true":"false");
+    });
+    if(remember){ try{localStorage.setItem(K+"-pane",which);}catch(e){} }
+  }
+  btns.forEach(function(b){
+    b.addEventListener("click",function(){
+      show(b.dataset.pane,true);
+      // drop any stale #anchor so the tab always opens at the top
+      if(location.hash){
+        history.replaceState(null,"",location.pathname+location.search);
+      }
+      window.scrollTo(0,0);
+    });
+  });
+  var saved="q6";
+  try{ saved=localStorage.getItem(K+"-pane")||"q6"; }catch(e){}
+  if(location.hash==="#q7") saved="q7";
+  if(location.hash==="#theory") saved="th";
+  if(!panes[saved]) saved="q6";
+  show(saved,false);
+
+  // a sentinel + IntersectionObserver avoids a scroll listener firing
+  // on every frame, which causes reflow and drops frames on phones
+  var tt=document.getElementById("totop");
+  var mark=document.createElement("div");
+  mark.style.cssText="position:absolute;top:600px;height:1px;width:1px;";
+  document.body.appendChild(mark);
+  if("IntersectionObserver" in window){
+    new IntersectionObserver(function(e){
+      tt.classList.toggle("show", !e[0].isIntersecting && window.scrollY>600);
+    }).observe(mark);
+  } else {
+    window.addEventListener("scroll",function(){
+      tt.classList.toggle("show", window.scrollY>600);
+    },{passive:true});
+  }
+  tt.addEventListener("click",function(){ window.scrollTo({top:0,behavior:"smooth"}); });
+})();
+</script>
+</body></html>
